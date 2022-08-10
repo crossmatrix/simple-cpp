@@ -17,7 +17,7 @@ void copyBin(const char* src, const char* dest) {
 	if (len > 0) {
 		byte* buf = (byte*)malloc(len);
 		if (buf != NULL) {
-			fseek(fp, 0, SEEK_CUR);
+			fseek(fp, 0, SEEK_SET);
 			fread(buf, 1, len, fp);
 			fwrite(buf, 1, len, wp);
 			free(buf);
