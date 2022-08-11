@@ -1,5 +1,16 @@
 #include "peTool.h"
 
+void* malloc_s(int size) {
+	void* mem = malloc(size);
+	if (mem != NULL) {
+		ZeroMemory(mem, size);
+		return mem;
+	} else {
+		log("malloc error: %d", size);
+		return NULL;
+	}
+}
+
 void copyBin(const char* src, const char* dest) {
 	FILE* fp = fopen(src, "rb");
 	if (fp == NULL) {
