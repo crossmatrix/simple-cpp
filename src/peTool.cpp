@@ -11,7 +11,7 @@ void* malloc_s(int size) {
 	}
 }
 
-void copyBin(const char* src, const char* dest) {
+void copyBin(PCSTR src, PCSTR dest) {
 	FILE* fp = fopen(src, "rb");
 	if (fp == NULL) {
 		return;
@@ -39,7 +39,7 @@ void copyBin(const char* src, const char* dest) {
 	fclose(fp);
 }
 
-long openPE(IN const char* path, OUT PVOID* file) {
+long openPE(IN PCSTR path, OUT PVOID* file) {
 	FILE* fp = fopen(path, "rb");
 	if (fp == NULL) {
 		log("file not exist: %s", path);
@@ -63,22 +63,32 @@ long openPE(IN const char* path, OUT PVOID* file) {
 	return len;
 }
 
-void showPE(const char* path) {
-	PVOID peFile = 0;
-	long len = openPE(path, &peFile);
+void savePE(PVOID buffer, DWORD size, PCSTR path) {
+	FILE* fp = fopen(path, "wb");
+	if (!fp) {
+		log("open file error: %s", path);
+		return;
+	}
+	fwrite(buffer, 1, size, fp);
+	fclose(fp);
+}
 
-	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)peFile;
+void showPE(PCSTR path) {
+	PVOID fileBuffer = 0;
+	long len = openPE(path, &fileBuffer);
+
+	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 	if (hDos->e_magic != IMAGE_DOS_SIGNATURE) {
 		log("not mz");
-		free(peFile);
+		free(fileBuffer);
 		return;
 	}
 	log("ntOffset\t 0x%04X", hDos->e_lfanew);
 
-	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)peFile + hDos->e_lfanew);
+	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + hDos->e_lfanew);
 	if (hNt->Signature != IMAGE_NT_SIGNATURE) {
 		log("not pe");
-		free(peFile);
+		free(fileBuffer);
 		return;
 	}
 	PIMAGE_FILE_HEADER hStd = &hNt->FileHeader;
@@ -116,23 +126,37 @@ void showPE(const char* path) {
 		log("    fa\t\t 0x%08X", sec->PointerToRawData);
 	}
 
-	free(peFile);
+	free(fileBuffer);
 }
 
-void peFile2Img(PVOID peFile, PVOID* img) {
-	PIMAGE_NT_HEADERS pNt = (PIMAGE_NT_HEADERS)((DWORD)peFile + ((PIMAGE_DOS_HEADER)peFile)->e_lfanew);
+void peFile2Img(PVOID fileBuffer, PVOID* imgBuffer) {
+	PIMAGE_NT_HEADERS pNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
 	PVOID buf = malloc_s(pNt->OptionalHeader.SizeOfImage);
-	memcpy(buf, peFile, pNt->OptionalHeader.SizeOfHeaders);
+	memcpy(buf, fileBuffer, pNt->OptionalHeader.SizeOfHeaders);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(pNt);
 	for (int i = 0; i < pNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
 		DWORD dst = (DWORD)buf + sec->VirtualAddress;
-		DWORD src = (DWORD)peFile + sec->PointerToRawData;
+		DWORD src = (DWORD)fileBuffer + sec->PointerToRawData;
 		memcpy((PVOID)dst, (PVOID)src, sec->SizeOfRawData);
 	}
-	*img = buf;
+	*imgBuffer = buf;
 }
 
-void peImg2File(PVOID img, PVOID* newBuf) {
-
+DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer) {
+	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)imgBuffer + ((PIMAGE_DOS_HEADER)imgBuffer)->e_lfanew);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
+	DWORD size = lstSec->PointerToRawData + lstSec->SizeOfRawData;
+	PVOID buf = malloc_s(size);
+	memcpy(buf, imgBuffer, hNt->OptionalHeader.SizeOfHeaders);
+	//log("%08x", hNt->OptionalHeader.SizeOfHeaders);
+	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+		PIMAGE_SECTION_HEADER sec = fstSec + i;
+		DWORD dst = (DWORD)buf + sec->PointerToRawData;
+		DWORD src = (DWORD)imgBuffer + sec->VirtualAddress;
+		memcpy((PVOID)dst, (PVOID)src, sec->SizeOfRawData);
+	}
+	*newBuffer = buf;
+	return size;
 }

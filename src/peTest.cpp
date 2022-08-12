@@ -13,7 +13,7 @@ namespace peTest {
 
 	void test1() {
 		char* s1 = res("notepad.exe");
-		char* s2 = res("copyBin.exe");
+		char* s2 = res("1_copyBin.exe");
 		copyBin(s1, s2);
 		free(s1);
 		free(s2);
@@ -30,15 +30,18 @@ namespace peTest {
 	void test3() {
 		char* s1 = res("notepad.exe");
 		PVOID peFile = 0;
-		long peSize = openPE(s1, &peFile);
+		openPE(s1, &peFile);
 
 		PVOID peImg = 0;
 		peFile2Img(peFile, &peImg);
 		log("file > image");
 
 		PVOID newBuf = 0;
-		peImg2File(peImg, &newBuf);
+		DWORD size = peImg2File(peImg, &newBuf);
 		log("image > file");
+
+		char* s2 = res("2_notepad_stretchBack.exe");
+		savePE(newBuf, size, s2);
 
 		free(s1);
 		free(peFile);
