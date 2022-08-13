@@ -160,3 +160,63 @@ DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer) {
 	*newBuffer = buf;
 	return size;
 }
+
+DWORD align(DWORD value, DWORD fmt) {
+	int div = value / fmt;
+	if (div * fmt == value) {
+		return value;
+	} else {
+		return (div + 1) * fmt;
+	}
+}
+
+DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
+	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+	
+	if (foa >= 0) {
+		if (foa < fstSec->PointerToRawData) {
+			return foa;
+		} else {
+			for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+				PIMAGE_SECTION_HEADER sec = fstSec + i;
+				if (foa < sec->PointerToRawData + sec->SizeOfRawData) {
+					return foa - sec->PointerToRawData + sec->VirtualAddress;
+				}
+			}
+		}
+	}
+	log("not find foa: %08x", foa);
+	return -1;
+}
+
+DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
+	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+
+	if (rva >= 0) {
+		if (rva < fstSec->VirtualAddress) {
+			if (rva < fstSec->PointerToRawData) {
+				return rva;
+			} else {
+				log("rva -> foa fail, in header: %08x, img: [0, %08x), file: [0, %08x)", rva, fstSec->VirtualAddress, fstSec->PointerToRawData);
+				return -1;
+			}
+		} else {
+			for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+				PIMAGE_SECTION_HEADER sec = fstSec + i;
+				DWORD nextVA = sec->VirtualAddress + align(sec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
+				if (rva < nextVA) {
+					if (rva - sec->VirtualAddress < sec->SizeOfRawData) {
+						return rva - sec->VirtualAddress + sec->PointerToRawData;
+					} else {
+						log("rva -> foa fail, in sec%d: %08x, img: [%08x, %08x), file: [%08x, %08x)", i + 1, rva, sec->VirtualAddress, nextVA, sec->PointerToRawData, sec->PointerToRawData + sec->SizeOfRawData);
+						return -1;
+					}
+				}
+			}
+		}
+	}
+	log("not find rva: %08x", rva);
+	return -1;
+}

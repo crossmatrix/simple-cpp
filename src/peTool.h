@@ -10,9 +10,11 @@
 void* malloc_s(int size);
 void copyBin(PCSTR src, PCSTR dest);
 long openPE(IN PCSTR path, OUT PVOID* file);
+void savePE(PVOID buffer, DWORD size, PCSTR path);
 void showPE(PCSTR path);
 void peFile2Img(PVOID fileBuffer, PVOID* imgBuffer);
 DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer);
-void savePE(PVOID buffer, DWORD size, PCSTR path);
+DWORD foa2rva(PVOID fileBuffer, DWORD foa);
+DWORD rva2foa(PVOID fileBuffer, DWORD rva);
 
 #endif
