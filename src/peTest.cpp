@@ -3,7 +3,7 @@
 namespace peTest {
 	const char* p1 = "E:/code/cpp/simple-cpp/res/";
 	const char* p2 = "D:/Code/vsDir/simple-cpp/res/";
-	const char* FILE_ROOT = p1;
+	const char* FILE_ROOT = p2;
 
 	char* res(const char* name) {
 		char* rs = (char*)malloc_s(50);
@@ -117,7 +117,81 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
+	void logSec(PIMAGE_SECTION_HEADER sec, int id) {
+		if (sec == NULL) {
+			log("[%d] is NULL", id);
+		} else {
+			log("[%d] %s %08x %08x", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
+		}
+	}
+
 	void test5() {
+		char* path = res("notepad.exe");
+		//showPE(path);
+
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+		PIMAGE_SECTION_HEADER sec = NULL;
+
+		sec	= getSecByFoa(fileBuffer, 0);
+		logSec(sec, 1);
+		
+		sec = getSecByFoa(fileBuffer, 0x3FF);
+		logSec(sec, 2);
+		sec = getSecByFoa(fileBuffer, 0x3FF + 1);
+		logSec(sec, 3);
+
+		sec = getSecByFoa(fileBuffer, 0x7C00);
+		logSec(sec, 4);
+		sec = getSecByFoa(fileBuffer, 0x8400 - 1);
+		logSec(sec, 5);
+
+		sec = getSecByFoa(fileBuffer, 0x8400);
+		logSec(sec, 6);
+		sec = getSecByFoa(fileBuffer, 0x10400 - 1);
+		logSec(sec, 7);
+		sec = getSecByFoa(fileBuffer, 0x10400);
+		logSec(sec, 8);
+
+		free(path);
+		free(fileBuffer);
+	}
+
+	void test6() {
+		char* path = res("notepad.exe");
+		//showPE(path);
+
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+		PIMAGE_SECTION_HEADER sec = NULL;
+
+		sec = getSecByRva(fileBuffer, 0);
+		logSec(sec, 1);
+
+		sec = getSecByRva(fileBuffer, 0x1000 - 1);
+		logSec(sec, 2);
+		sec = getSecByRva(fileBuffer, 0x1000);
+		logSec(sec, 3);
+
+		sec = getSecByRva(fileBuffer, 0x9000);
+		logSec(sec, 4);
+		sec = getSecByRva(fileBuffer, 0x9000 - 1);
+		logSec(sec, 5);
+
+		sec = getSecByRva(fileBuffer, 0xb000 - 1);
+		logSec(sec, 6);
+		sec = getSecByRva(fileBuffer, 0xb000);
+		logSec(sec, 7);
+		sec = getSecByRva(fileBuffer, 0x13000 - 1);
+		logSec(sec, 8);
+		sec = getSecByRva(fileBuffer, 0x13000);
+		logSec(sec, 9);
+
+		free(path);
+		free(fileBuffer);
+	}
+
+	void test7() {
 		
 	}
 }
@@ -125,6 +199,6 @@ namespace peTest {
 using namespace peTest;
 
 int main() {
-	test5();
+	test7();
 	return 0;
 }

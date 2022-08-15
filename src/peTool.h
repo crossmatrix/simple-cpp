@@ -16,5 +16,9 @@ void peFile2Img(PVOID fileBuffer, PVOID* imgBuffer);
 DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer);
 DWORD foa2rva(PVOID fileBuffer, DWORD foa);
 DWORD rva2foa(PVOID fileBuffer, DWORD rva);
+DWORD rva2fa(PVOID fileBuffer, DWORD rva);
+DWORD fa2rva(PVOID fileBuffer, DWORD fa);
+PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva);
+PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa);
 
 #endif

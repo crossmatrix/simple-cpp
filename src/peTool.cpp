@@ -76,6 +76,7 @@ void savePE(PVOID buffer, DWORD size, PCSTR path) {
 void showPE(PCSTR path) {
 	PVOID fileBuffer = 0;
 	long len = openPE(path, &fileBuffer);
+	log("fileSize\t 0x%08X", len);
 
 	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 	if (hDos->e_magic != IMAGE_DOS_SIGNATURE) {
@@ -83,6 +84,7 @@ void showPE(PCSTR path) {
 		free(fileBuffer);
 		return;
 	}
+	log("----------------DOS_HEADER important info----------------");
 	log("ntOffset\t 0x%04X", hDos->e_lfanew);
 
 	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + hDos->e_lfanew);
@@ -150,7 +152,6 @@ DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer) {
 	DWORD size = lstSec->PointerToRawData + lstSec->SizeOfRawData;
 	PVOID buf = malloc_s(size);
 	memcpy(buf, imgBuffer, hNt->OptionalHeader.SizeOfHeaders);
-	//log("%08x", hNt->OptionalHeader.SizeOfHeaders);
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
 		DWORD dst = (DWORD)buf + sec->PointerToRawData;
@@ -219,4 +220,42 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 	}
 	log("not find rva: %08x", rva);
 	return -1;
+}
+
+DWORD rva2fa(PVOID fileBuffer, DWORD rva) {
+	return (DWORD)fileBuffer + rva2foa(fileBuffer, rva);
+}
+
+DWORD fa2rva(PVOID fileBuffer, DWORD fa) {
+	return foa2rva(fileBuffer, fa - (DWORD)fileBuffer);
+}
+
+PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
+	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+
+	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+		PIMAGE_SECTION_HEADER sec = fstSec + i;
+		DWORD start = sec->VirtualAddress;
+		DWORD end = sec->VirtualAddress + align(sec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
+		if (rva >= start && rva < end) {
+			return sec;
+		}
+	}
+	return NULL;
+}
+
+PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
+	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+
+	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+		PIMAGE_SECTION_HEADER sec = fstSec + i;
+		DWORD start = sec->PointerToRawData;
+		DWORD end = sec->PointerToRawData + sec->SizeOfRawData;
+		if (foa >= start && foa < end) {
+			return sec;
+		}
+	}
+	return NULL;
 }
