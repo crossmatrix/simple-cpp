@@ -118,11 +118,9 @@ namespace peTest {
 	}
 
 	void logSec(PIMAGE_SECTION_HEADER sec, int id) {
-		if (sec == NULL) {
-			log("[%d] is NULL", id);
-		} else {
+		if (sec != NULL) {
 			log("[%d] %s %08x %08x", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
-		}
+		} 
 	}
 
 	void test5() {
@@ -192,7 +190,23 @@ namespace peTest {
 	}
 
 	void test7() {
-		
+		char* path = res("notepad.exe");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		byte code[] = {
+			0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00,
+			0xE8, 0x00, 0x00, 0x00, 0x00,
+			0xE9, 0x00, 0x00, 0x00, 0x00
+		};
+
+		int secIdx = 1;
+		DWORD pos = findEmpty(fileBuffer, ARRAYSIZE(code), secIdx, true);
+
+		injCode(fileBuffer, code, ARRAYSIZE(code), pos);
+
+		free(path);
+		free(fileBuffer);
 	}
 }
 

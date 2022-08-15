@@ -6,6 +6,7 @@
 #include <winnt.h>
 
 #define log(str,...) printf(str##"\n",__VA_ARGS__)
+#define NT_HEADER(buffer) ((PIMAGE_NT_HEADERS)((DWORD)buffer + ((PIMAGE_DOS_HEADER)buffer)->e_lfanew))
 
 void* malloc_s(int size);
 void copyBin(PCSTR src, PCSTR dest);
@@ -20,5 +21,7 @@ DWORD rva2fa(PVOID fileBuffer, DWORD rva);
 DWORD fa2rva(PVOID fileBuffer, DWORD fa);
 PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva);
 PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa);
+DWORD findEmpty(PVOID fileBuffer, DWORD size, int secIdx, bool fromEnd);
+void injCode(PVOID fileBuffer, byte* code, int num, DWORD pos);
 
 #endif

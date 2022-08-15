@@ -132,11 +132,11 @@ void showPE(PCSTR path) {
 }
 
 void peFile2Img(PVOID fileBuffer, PVOID* imgBuffer) {
-	PIMAGE_NT_HEADERS pNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
-	PVOID buf = malloc_s(pNt->OptionalHeader.SizeOfImage);
-	memcpy(buf, fileBuffer, pNt->OptionalHeader.SizeOfHeaders);
-	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(pNt);
-	for (int i = 0; i < pNt->FileHeader.NumberOfSections; i++) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PVOID buf = malloc_s(hNt->OptionalHeader.SizeOfImage);
+	memcpy(buf, fileBuffer, hNt->OptionalHeader.SizeOfHeaders);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
 		DWORD dst = (DWORD)buf + sec->VirtualAddress;
 		DWORD src = (DWORD)fileBuffer + sec->PointerToRawData;
@@ -146,7 +146,7 @@ void peFile2Img(PVOID fileBuffer, PVOID* imgBuffer) {
 }
 
 DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer) {
-	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)imgBuffer + ((PIMAGE_DOS_HEADER)imgBuffer)->e_lfanew);
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(imgBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
 	DWORD size = lstSec->PointerToRawData + lstSec->SizeOfRawData;
@@ -172,7 +172,7 @@ DWORD align(DWORD value, DWORD fmt) {
 }
 
 DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
-	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	
 	if (foa >= 0) {
@@ -192,7 +192,7 @@ DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
 }
 
 DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
-	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 
 	if (rva >= 0) {
@@ -231,7 +231,7 @@ DWORD fa2rva(PVOID fileBuffer, DWORD fa) {
 }
 
 PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
-	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
@@ -242,11 +242,12 @@ PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
 			return sec;
 		}
 	}
+	log("not find section: %08x", rva);
 	return NULL;
 }
 
 PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
-	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + ((PIMAGE_DOS_HEADER)fileBuffer)->e_lfanew);
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
@@ -257,5 +258,65 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
 			return sec;
 		}
 	}
+	log("not find section: %08x", foa);
 	return NULL;
+}
+
+bool checkChunk(PVOID buffer, DWORD pos, PVOID chunk, DWORD size) {
+
+	return false;
+}
+
+//secIdx: 0 header, >0 section
+DWORD findEmpty(PVOID fileBuffer, DWORD size, int secIdx, bool fromEnd) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+
+	DWORD start = 0;
+	DWORD end = 0;
+	if (secIdx == 0) {
+		start = 0;
+		end = fstSec->PointerToRawData - 1;
+	} else {
+		if (secIdx <= hNt->FileHeader.NumberOfSections) {
+			PIMAGE_SECTION_HEADER sec = fstSec + (secIdx - 1);
+			start = sec->PointerToRawData;
+			end = sec->PointerToRawData + sec->SizeOfRawData - 1;
+		} else {
+			log("secIdx error: %d, maxSecIdx: %d", secIdx, hNt->FileHeader.NumberOfSections);
+			return -1;
+		}
+	}
+
+	if (size <= 0) {
+		log("size must > 0");
+		return -1;
+	}
+
+	byte* chunk = new byte[size]{};
+	if (fromEnd) {
+		DWORD tmp = start;
+		start = end;
+		end = tmp;
+		for (DWORD p = start; p >= end; p--) {
+			if (checkChunk(fileBuffer, p, chunk, size)) {
+				return p;
+			}
+			if (p == 0) {
+				break;
+			}
+		}
+	} else {
+		for (DWORD p = start; p <= end; p++) {
+			if (checkChunk(fileBuffer, p, chunk, size)) {
+				return p;
+			}
+		}
+	}
+	log("no avaliable space");
+	return -1;
+}
+
+void injCode(PVOID fileBuffer, byte* code, int num, DWORD pos) {
+	
 }
