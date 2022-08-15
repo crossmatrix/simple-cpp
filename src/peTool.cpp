@@ -236,6 +236,7 @@ PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
 
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
+		//[start, end)
 		DWORD start = sec->VirtualAddress;
 		DWORD end = sec->VirtualAddress + align(sec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
 		if (rva >= start && rva < end) {
@@ -252,6 +253,7 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
 
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
+		//[start, end)
 		DWORD start = sec->PointerToRawData;
 		DWORD end = sec->PointerToRawData + sec->SizeOfRawData;
 		if (foa >= start && foa < end) {
@@ -262,16 +264,28 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
 	return NULL;
 }
 
-bool checkChunk(PVOID buffer, DWORD pos, PVOID chunk, DWORD size) {
-
-	return false;
+//[startAddr, endAddr]
+bool checkChunk(PVOID buffer, DWORD startOffset, DWORD endOffset, PVOID chunk, DWORD chunkSize) {
+	if (endOffset - startOffset + 1 < chunkSize) {
+		return false;
+	}
+	for (int i = 0; i < chunkSize; i++) {
+		PBYTE c1 = (PBYTE)((DWORD)buffer + startOffset + i);
+		PBYTE c2 = (PBYTE)((DWORD)chunk + i);
+		if (*c1 != *c2) {
+			return false;
+		}
+	}
+	return true;
 }
 
-//secIdx: 0 header, >0 section
-DWORD findEmpty(PVOID fileBuffer, DWORD size, int secIdx, bool fromEnd) {
+//result is foa, secIdx: 0 header, >0 section
+DWORD findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd) {
+	chunkSize += 1;
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 
+	//[start, end]
 	DWORD start = 0;
 	DWORD end = 0;
 	if (secIdx == 0) {
@@ -288,18 +302,20 @@ DWORD findEmpty(PVOID fileBuffer, DWORD size, int secIdx, bool fromEnd) {
 		}
 	}
 
-	if (size <= 0) {
+	if (chunkSize <= 0) {
 		log("size must > 0");
 		return -1;
 	}
 
-	byte* chunk = new byte[size]{};
+	byte* chunk = new byte[chunkSize]{};
 	if (fromEnd) {
 		DWORD tmp = start;
 		start = end;
 		end = tmp;
 		for (DWORD p = start; p >= end; p--) {
-			if (checkChunk(fileBuffer, p, chunk, size)) {
+			if (checkChunk(fileBuffer, p, start, chunk, chunkSize)) {
+				/*PIMAGE_SECTION_HEADER targSec = fstSec + (secIdx - 1);
+				targSec->Characteristics = targSec->Characteristics | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;*/
 				return p;
 			}
 			if (p == 0) {
@@ -308,7 +324,7 @@ DWORD findEmpty(PVOID fileBuffer, DWORD size, int secIdx, bool fromEnd) {
 		}
 	} else {
 		for (DWORD p = start; p <= end; p++) {
-			if (checkChunk(fileBuffer, p, chunk, size)) {
+			if (checkChunk(fileBuffer, p, end, chunk, chunkSize)) {
 				return p;
 			}
 		}
@@ -317,6 +333,21 @@ DWORD findEmpty(PVOID fileBuffer, DWORD size, int secIdx, bool fromEnd) {
 	return -1;
 }
 
-void injCode(PVOID fileBuffer, byte* code, int num, DWORD pos) {
-	
+void injCode(PVOID fileBuffer, byte* code, DWORD chunkSize, DWORD foaPos) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	DWORD rvaPos = foa2rva(fileBuffer, foaPos);
+
+	PDWORD p1 = (PDWORD)((DWORD)code + 9);
+	*p1 = (DWORD)MessageBox - (hNt->OptionalHeader.ImageBase + rvaPos + 13);
+
+	PDWORD p2 = (PDWORD)((DWORD)code + 14);
+	*p2 = hNt->OptionalHeader.AddressOfEntryPoint - (rvaPos + 18);
+	memcpy((PVOID)((DWORD)fileBuffer + foaPos), code, chunkSize);
+
+	hNt->OptionalHeader.AddressOfEntryPoint = foa2rva(fileBuffer, foaPos);
 }
+
+//todo1: all DWORD & -1
+//todo2: Characteristics
+//todo3: injCode
+//todo4: secIdx = 0, 4
