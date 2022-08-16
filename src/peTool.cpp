@@ -126,6 +126,7 @@ void showPE(PCSTR path) {
 		log("    va\t\t 0x%08X", sec->VirtualAddress);
 		log("    fs\t\t 0x%08X", sec->SizeOfRawData);
 		log("    fa\t\t 0x%08X", sec->PointerToRawData);
+		log("    char\t 0x%08X", sec->Characteristics);
 	}
 
 	free(fileBuffer);
@@ -134,15 +135,17 @@ void showPE(PCSTR path) {
 void peFile2Img(PVOID fileBuffer, PVOID* imgBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PVOID buf = malloc_s(hNt->OptionalHeader.SizeOfImage);
-	memcpy(buf, fileBuffer, hNt->OptionalHeader.SizeOfHeaders);
-	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
-	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
-		PIMAGE_SECTION_HEADER sec = fstSec + i;
-		DWORD dst = (DWORD)buf + sec->VirtualAddress;
-		DWORD src = (DWORD)fileBuffer + sec->PointerToRawData;
-		memcpy((PVOID)dst, (PVOID)src, sec->SizeOfRawData);
+	if (buf != NULL) {
+		memcpy(buf, fileBuffer, hNt->OptionalHeader.SizeOfHeaders);
+		PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+		for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+			PIMAGE_SECTION_HEADER sec = fstSec + i;
+			DWORD dst = (DWORD)buf + sec->VirtualAddress;
+			DWORD src = (DWORD)fileBuffer + sec->PointerToRawData;
+			memcpy((PVOID)dst, (PVOID)src, sec->SizeOfRawData);
+		}
+		*imgBuffer = buf;
 	}
-	*imgBuffer = buf;
 }
 
 DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer) {
@@ -151,15 +154,19 @@ DWORD peImg2File(PVOID imgBuffer, PVOID* newBuffer) {
 	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
 	DWORD size = lstSec->PointerToRawData + lstSec->SizeOfRawData;
 	PVOID buf = malloc_s(size);
-	memcpy(buf, imgBuffer, hNt->OptionalHeader.SizeOfHeaders);
-	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
-		PIMAGE_SECTION_HEADER sec = fstSec + i;
-		DWORD dst = (DWORD)buf + sec->PointerToRawData;
-		DWORD src = (DWORD)imgBuffer + sec->VirtualAddress;
-		memcpy((PVOID)dst, (PVOID)src, sec->SizeOfRawData);
+	if (buf != NULL) {
+		memcpy(buf, imgBuffer, hNt->OptionalHeader.SizeOfHeaders);
+		for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+			PIMAGE_SECTION_HEADER sec = fstSec + i;
+			DWORD dst = (DWORD)buf + sec->PointerToRawData;
+			DWORD src = (DWORD)imgBuffer + sec->VirtualAddress;
+			memcpy((PVOID)dst, (PVOID)src, sec->SizeOfRawData);
+		}
+		*newBuffer = buf;
+		return size;
+	} else {
+		return 0;
 	}
-	*newBuffer = buf;
-	return size;
 }
 
 DWORD align(DWORD value, DWORD fmt) {
@@ -188,7 +195,7 @@ DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
 		}
 	}
 	log("not find foa: %08x", foa);
-	return -1;
+	return 0;
 }
 
 DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
@@ -201,7 +208,7 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 				return rva;
 			} else {
 				log("rva -> foa fail, in header: %08x, img: [0, %08x), file: [0, %08x)", rva, fstSec->VirtualAddress, fstSec->PointerToRawData);
-				return -1;
+				return 0;
 			}
 		} else {
 			for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
@@ -212,14 +219,14 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 						return rva - sec->VirtualAddress + sec->PointerToRawData;
 					} else {
 						log("rva -> foa fail, in sec%d: %08x, img: [%08x, %08x), file: [%08x, %08x)", i + 1, rva, sec->VirtualAddress, nextVA, sec->PointerToRawData, sec->PointerToRawData + sec->SizeOfRawData);
-						return -1;
+						return 0;
 					}
 				}
 			}
 		}
 	}
 	log("not find rva: %08x", rva);
-	return -1;
+	return 0;
 }
 
 DWORD rva2fa(PVOID fileBuffer, DWORD rva) {
@@ -280,8 +287,7 @@ bool checkChunk(PVOID buffer, DWORD startOffset, DWORD endOffset, PVOID chunk, D
 }
 
 //result is foa, secIdx: 0 header, >0 section
-DWORD findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd) {
-	chunkSize += 1;
+bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT DWORD* targPos) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 
@@ -298,13 +304,13 @@ DWORD findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd) {
 			end = sec->PointerToRawData + sec->SizeOfRawData - 1;
 		} else {
 			log("secIdx error: %d, maxSecIdx: %d", secIdx, hNt->FileHeader.NumberOfSections);
-			return -1;
+			return false;
 		}
 	}
 
 	if (chunkSize <= 0) {
 		log("size must > 0");
-		return -1;
+		return false;
 	}
 
 	byte* chunk = new byte[chunkSize]{};
@@ -314,9 +320,8 @@ DWORD findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd) {
 		end = tmp;
 		for (DWORD p = start; p >= end; p--) {
 			if (checkChunk(fileBuffer, p, start, chunk, chunkSize)) {
-				/*PIMAGE_SECTION_HEADER targSec = fstSec + (secIdx - 1);
-				targSec->Characteristics = targSec->Characteristics | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;*/
-				return p;
+				*targPos = p;
+				return true;
 			}
 			if (p == 0) {
 				break;
@@ -325,29 +330,19 @@ DWORD findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd) {
 	} else {
 		for (DWORD p = start; p <= end; p++) {
 			if (checkChunk(fileBuffer, p, end, chunk, chunkSize)) {
-				return p;
+				*targPos = p;
+				return true;
 			}
 		}
 	}
 	log("no avaliable space");
-	return -1;
+	return false;
 }
 
-void injCode(PVOID fileBuffer, byte* code, DWORD chunkSize, DWORD foaPos) {
+//offsetToBase: [0,n]
+void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DWORD targVa) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
-	DWORD rvaPos = foa2rva(fileBuffer, foaPos);
-
-	PDWORD p1 = (PDWORD)((DWORD)code + 9);
-	*p1 = (DWORD)MessageBox - (hNt->OptionalHeader.ImageBase + rvaPos + 13);
-
-	PDWORD p2 = (PDWORD)((DWORD)code + 14);
-	*p2 = hNt->OptionalHeader.AddressOfEntryPoint - (rvaPos + 18);
-	memcpy((PVOID)((DWORD)fileBuffer + foaPos), code, chunkSize);
-
-	hNt->OptionalHeader.AddressOfEntryPoint = foa2rva(fileBuffer, foaPos);
+	DWORD rvaPos = foa2rva(fileBuffer, baseFoa);
+	PDWORD p = (PDWORD)((DWORD)code + offsetToBase);
+	*p = targVa - (hNt->OptionalHeader.ImageBase + rvaPos + offsetToBase + 4);
 }
-
-//todo1: all DWORD & -1
-//todo2: Characteristics
-//todo3: injCode
-//todo4: secIdx = 0, 4

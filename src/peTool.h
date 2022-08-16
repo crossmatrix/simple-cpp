@@ -21,7 +21,7 @@ DWORD rva2fa(PVOID fileBuffer, DWORD rva);
 DWORD fa2rva(PVOID fileBuffer, DWORD fa);
 PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva);
 PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa);
-DWORD findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd);
-void injCode(PVOID fileBuffer, byte* code, DWORD chunkSize, DWORD foaPos);
+bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT DWORD* targPos);
+void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DWORD targVa);
 
 #endif

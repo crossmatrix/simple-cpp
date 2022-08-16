@@ -3,7 +3,7 @@
 namespace peTest {
 	const char* p1 = "E:/code/cpp/simple-cpp/res/";
 	const char* p2 = "D:/Code/vsDir/simple-cpp/res/";
-	const char* FILE_ROOT = p1;
+	const char* FILE_ROOT = p2;
 
 	char* res(const char* name) {
 		char* rs = (char*)malloc_s(50);
@@ -189,21 +189,32 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
+	byte shellCode[] = {
+		0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00,
+		0xE8, 0x00, 0x00, 0x00, 0x00,
+		0xE9, 0x00, 0x00, 0x00, 0x00,
+		0x00
+	};
+
+	void inj(PVOID fileBuffer, DWORD pos) {
+		PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+		calcJmp(fileBuffer, pos, shellCode, 9, (DWORD)MessageBox);
+		calcJmp(fileBuffer, pos, shellCode, 14, hNt->OptionalHeader.ImageBase + hNt->OptionalHeader.AddressOfEntryPoint);
+		memcpy((PVOID)((DWORD)fileBuffer + pos), shellCode, ARRAYSIZE(shellCode));
+		hNt->OptionalHeader.AddressOfEntryPoint = foa2rva(fileBuffer, pos);
+	}
+
 	void test7() {
 		char* path = res("notepad.exe");
 		PVOID fileBuffer = 0;
 		long fileSize = openPE(path, &fileBuffer);
 
-		byte code[] = {
-			0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00, 0x6A, 0x00,
-			0xE8, 0x00, 0x00, 0x00, 0x00,
-			0xE9, 0x00, 0x00, 0x00, 0x00
-		};
+		int secIdx = 1;	//01234
+		DWORD pos = 0;
+		bool isFind = findEmpty(fileBuffer, ARRAYSIZE(shellCode), secIdx, true, &pos);
+		if (isFind) {
+			inj(fileBuffer, pos);
 
-		int secIdx = 1;
-		DWORD pos = findEmpty(fileBuffer, ARRAYSIZE(code), secIdx, true);
-		if (pos > 0) {
-			injCode(fileBuffer, code, ARRAYSIZE(code), pos);
 			char* outPath = res("3_injcode.exe");
 			savePE(fileBuffer, fileSize, outPath);
 			log("save finish: %s", outPath);
@@ -212,6 +223,12 @@ namespace peTest {
 
 		free(path);
 		free(fileBuffer);
+	}
+
+	void test8() {
+		//add sec(last or other)
+		//extend sec(last or other)
+		//merge
 	}
 }
 
