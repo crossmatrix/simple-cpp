@@ -70,48 +70,48 @@ namespace peTest {
 
 		DWORD rva1 = foa2rva(fileBuffer, 0);
 		DWORD rva2 = foa2rva(fileBuffer, 0x3FF);
-		log("%08x %08x", rva1, rva2);
+		log("%p %p", rva1, rva2);
 		DWORD foa1 = rva2foa(fileBuffer, rva1);
 		DWORD foa2 = rva2foa(fileBuffer, rva2);
-		log("%08x %08x\n", foa1, foa2);
+		log("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, 0x400);
 		rva2 = foa2rva(fileBuffer, 0x7BFF);
-		log("%08x %08x", rva1, rva2);
+		log("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%08x %08x\n", foa1, foa2);
+		log("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, 0x7C00);
 		rva2 = foa2rva(fileBuffer, 0x83FF);
-		log("%08x %08x", rva1, rva2);
+		log("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%08x %08x\n", foa1, foa2);
+		log("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, 0x8400);
 		rva2 = foa2rva(fileBuffer, 0x103FF);
-		log("%08x %08x", rva1, rva2);
+		log("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%08x %08x\n", foa1, foa2);
+		log("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, -1);
 		rva2 = foa2rva(fileBuffer, 0x10400);
-		log("%08x %08x", rva1, rva2);
+		log("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%08x %08x\n", foa1, foa2);
+		log("%p %p\n", foa1, foa2);
 
-		log("%08x", rva2foa(fileBuffer, 0x0fff));
-		log("%08x", rva2foa(fileBuffer, 0x1000));
-		log("%08x", rva2foa(fileBuffer, 0x1001));
-		log("%08x", rva2foa(fileBuffer, 0x8800 - 1));
-		log("%08x", rva2foa(fileBuffer, 0x8fff));
-		log("%08x", rva2foa(fileBuffer, 0x8fff + 1));
-		log("%08x", rva2foa(fileBuffer, 0xb000));
-		log("%08x", rva2foa(fileBuffer, 0xb000 + 0x10400 - 0x8400 - 1));
-		log("%08x", rva2foa(fileBuffer, 0x13000));
+		log("%p", rva2foa(fileBuffer, 0x0fff));
+		log("%p", rva2foa(fileBuffer, 0x1000));
+		log("%p", rva2foa(fileBuffer, 0x1001));
+		log("%p", rva2foa(fileBuffer, 0x8800 - 1));
+		log("%p", rva2foa(fileBuffer, 0x8fff));
+		log("%p", rva2foa(fileBuffer, 0x8fff + 1));
+		log("%p", rva2foa(fileBuffer, 0xb000));
+		log("%p", rva2foa(fileBuffer, 0xb000 + 0x10400 - 0x8400 - 1));
+		log("%p", rva2foa(fileBuffer, 0x13000));
 
 		free(path);
 		free(fileBuffer);
@@ -119,7 +119,7 @@ namespace peTest {
 
 	void logSec(PIMAGE_SECTION_HEADER sec, int id) {
 		if (sec != NULL) {
-			log("[%d] %s %08x %08x", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
+			log("[%d] %s %p %p", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
 		} 
 	}
 
@@ -230,11 +230,32 @@ namespace peTest {
 		//extend sec(last or other)
 		//merge
 	}
+
+	#pragma comment(lib, "myDll.lib")
+	extern "C" __declspec(dllimport) int add(int, int);
+	extern "C" __declspec(dllimport) int sub(int, int);
+	void test9() {
+		int v1 = add(30, 10);
+		int v2 = sub(30, 10);
+		log("%d %d", v1, v2);
+		log("%p %p", add, sub);
+
+		HMODULE mod = LoadLibrary("myDll.dll");
+		if (mod) {
+			FARPROC fp1 = GetProcAddress(mod, "add");
+			FARPROC fp2 = GetProcAddress(mod, "sub");
+			log("%p %p", fp1, fp2);
+
+			int(*func1)(int, int) = (int(*) (int, int))fp1;
+			int(*func2)(int, int) = (int(*) (int, int))fp2;
+			log("%d %d", func1(30, 10), func2(30, 10));
+		}
+	}
 }
 
 using namespace peTest;
 
 int main() {
-	test7();
+	test9();
 	return 0;
 }

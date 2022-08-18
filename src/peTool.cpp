@@ -76,7 +76,7 @@ void savePE(PVOID buffer, DWORD size, PCSTR path) {
 void showPE(PCSTR path) {
 	PVOID fileBuffer = 0;
 	long len = openPE(path, &fileBuffer);
-	log("fileSize\t 0x%08X", len);
+	log("fileSize\t 0x%p", len);
 
 	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 	if (hDos->e_magic != IMAGE_DOS_SIGNATURE) {
@@ -102,18 +102,18 @@ void showPE(PCSTR path) {
 	log("char\t\t 0x%04X", hStd->Characteristics);
 	log("----------------OPTIONAL_HEADER important info----------------");
 	log("magic\t\t 0x%04X", hOp->Magic);
-	log("oep\t\t 0x%08X", hOp->AddressOfEntryPoint);
-	log("imgBase\t\t 0x%08X", hOp->ImageBase);
-	log("secAlign\t 0x%08X", hOp->SectionAlignment);
-	log("fileAlign\t 0x%08X", hOp->FileAlignment);
-	log("sizeImg\t\t 0x%08X", hOp->SizeOfImage);
-	log("sizeHeader\t 0x%08X", hOp->SizeOfHeaders);
-	log("checkSum\t 0x%08X", hOp->CheckSum);
+	log("oep\t\t 0x%p", hOp->AddressOfEntryPoint);
+	log("imgBase\t\t 0x%p", hOp->ImageBase);
+	log("secAlign\t 0x%p", hOp->SectionAlignment);
+	log("fileAlign\t 0x%p", hOp->FileAlignment);
+	log("sizeImg\t\t 0x%p", hOp->SizeOfImage);
+	log("sizeHeader\t 0x%p", hOp->SizeOfHeaders);
+	log("checkSum\t 0x%p", hOp->CheckSum);
 	log("subSys\t\t 0x%04X", hOp->Subsystem);
 	log("dllChar\t\t 0x%04X", hOp->DllCharacteristics);
 	PIMAGE_DATA_DIRECTORY dataDir = hOp->DataDirectory;
 	for (int i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++) {
-		log("dataDir_%d\t va: 0x%08X sz: 0x%08X", i + 1, dataDir[i].VirtualAddress, dataDir[i].Size);
+		log("dataDir_%d\t va: 0x%p sz: 0x%p", i + 1, dataDir[i].VirtualAddress, dataDir[i].Size);
 	}
 
 	log("----------------Section important info----------------");
@@ -122,11 +122,11 @@ void showPE(PCSTR path) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
 		log("section_%d:", i + 1);
 		log("    name\t %s", sec->Name);
-		log("    vs\t\t 0x%08X", sec->Misc.VirtualSize);
-		log("    va\t\t 0x%08X", sec->VirtualAddress);
-		log("    fs\t\t 0x%08X", sec->SizeOfRawData);
-		log("    fa\t\t 0x%08X", sec->PointerToRawData);
-		log("    char\t 0x%08X", sec->Characteristics);
+		log("    vs\t\t 0x%p", sec->Misc.VirtualSize);
+		log("    va\t\t 0x%p", sec->VirtualAddress);
+		log("    fs\t\t 0x%p", sec->SizeOfRawData);
+		log("    fa\t\t 0x%p", sec->PointerToRawData);
+		log("    char\t 0x%p", sec->Characteristics);
 	}
 
 	free(fileBuffer);
@@ -194,7 +194,7 @@ DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
 			}
 		}
 	}
-	log("not find foa: %08x", foa);
+	log("not find foa: %p", foa);
 	return 0;
 }
 
@@ -207,7 +207,7 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 			if (rva < fstSec->PointerToRawData) {
 				return rva;
 			} else {
-				log("rva -> foa fail, in header: %08x, img: [0, %08x), file: [0, %08x)", rva, fstSec->VirtualAddress, fstSec->PointerToRawData);
+				log("rva -> foa fail, in header: %p, img: [0, %p), file: [0, %p)", rva, fstSec->VirtualAddress, fstSec->PointerToRawData);
 				return 0;
 			}
 		} else {
@@ -218,14 +218,14 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 					if (rva - sec->VirtualAddress < sec->SizeOfRawData) {
 						return rva - sec->VirtualAddress + sec->PointerToRawData;
 					} else {
-						log("rva -> foa fail, in sec%d: %08x, img: [%08x, %08x), file: [%08x, %08x)", i + 1, rva, sec->VirtualAddress, nextVA, sec->PointerToRawData, sec->PointerToRawData + sec->SizeOfRawData);
+						log("rva -> foa fail, in sec%d: %p, img: [%p, %p), file: [%p, %p)", i + 1, rva, sec->VirtualAddress, nextVA, sec->PointerToRawData, sec->PointerToRawData + sec->SizeOfRawData);
 						return 0;
 					}
 				}
 			}
 		}
 	}
-	log("not find rva: %08x", rva);
+	log("not find rva: %p", rva);
 	return 0;
 }
 
@@ -250,7 +250,7 @@ PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
 			return sec;
 		}
 	}
-	log("not find section: %08x", rva);
+	log("not find section: %p", rva);
 	return NULL;
 }
 
@@ -267,7 +267,7 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
 			return sec;
 		}
 	}
-	log("not find section: %08x", foa);
+	log("not find section: %p", foa);
 	return NULL;
 }
 
@@ -313,6 +313,7 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 		return false;
 	}
 
+	bool isFind = false;
 	byte* chunk = new byte[chunkSize]{};
 	if (fromEnd) {
 		DWORD tmp = start;
@@ -321,7 +322,8 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 		for (DWORD p = start; p >= end; p--) {
 			if (checkChunk(fileBuffer, p, start, chunk, chunkSize)) {
 				*targPos = p;
-				return true;
+				isFind = true;
+				break;
 			}
 			if (p == 0) {
 				break;
@@ -331,12 +333,16 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 		for (DWORD p = start; p <= end; p++) {
 			if (checkChunk(fileBuffer, p, end, chunk, chunkSize)) {
 				*targPos = p;
-				return true;
+				isFind = true;
+				break;
 			}
 		}
 	}
-	log("no avaliable space");
-	return false;
+	delete[] chunk;
+	if (!isFind) {
+		log("no avaliable space");
+	}
+	return isFind;
 }
 
 //offsetToBase: [0,n]
