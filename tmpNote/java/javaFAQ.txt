@@ -1,0 +1,158 @@
+String StringBuilder（线程不安全） StringBuffer（线程安全）都是final
+
+实现线程的方式有：
+	继承Thread类，重现run()方法
+	实现Runable接口，实现run()方法
+	实现Callable接口，线程结束后有返回值
+	
+Arrays.asList()返回的是一个Arrays.ArrayList（静态内部类），并不是java.util.ArrayList，
+对这个内部类进行增删会直接抛出异常 UnsupportedOperationException
+
+GC线程在jvm的优先级非常低
+GC只会回收jvm不再使用的内存，如果程序bug严重，仍会出现内存溢出
+进入dead的线程，还可以恢复，所以GC不会回收
+
+abstract：is - a
+interface: like - a
+
+[4x4]成员内部类：public/protected/默认/private/ + static/final/abstract/无修饰
+[3]局部内部类：final/abstract/无修饰
+另外：只有 静态-成员内部类 中能使用static修饰方法或属性（非静态-成员内部类，匿名内部类，局部内部类不允许存在static）
+
+接口中的一切访问权限一定是public（不管显式还是隐式）
+	已实现的方法：[public] static(接口)/default(类实例)
+	未实现的方法：[public abstract](类实例)
+	属性：[public static final](接口，类，类实例)
+	
+HashSet：无序
+TreeSet：自然排序
+LinkedHashSet：添加顺序排序
+
+class中的private成员，只能在本类访问！（包括在本类中实例出来的本类对象）
+	eg
+	class TC4{
+		private int a = 3;
+		private void pf(){}
+		
+		static void f(){
+			TC4 tc4 = new TC4();
+			tc4.a = 4;	//valid
+			tc4.pf();	//valid
+		}
+		
+		void f2(TC4 other){
+			other.a = 4;
+		}
+	}
+	
+标准ASCII只使用7个bit，扩展的ASCII使用8个bit
+ANSI通常使用 0x00~0x7f 范围的1 个字节来表示 1 个英文字符。超出此范围的使用0x80~0xFFFF来编码，即扩展的ASCII编码
+在简体中文Windows操作系统中，ANSI 编码代表 GBK 编码；在繁体中文Windows操作系统中，ANSI编码代表Big5
+ASCII码包含一些无法打印的特殊空字符
+
+重写（同名同参）要求两同两小一大原则：
+	方法名相同，参数类型相同，
+	子类返回类型小于等于父类方法返回类型，子类抛出异常小于等于父类方法抛出异常，
+	子类访问权限大于等于父类方法访问权限。［注意：这里的返回类型必须要在有继承关系的前提下比较］
+
+重载（同名不同参）方法名必须相同，参数类型必须不同，包括但不限于一项：参数数目，参数类型，参数顺序
+
+String.replaceAll(regex, replaceTarget)
+			
+public > protected > default > private
+	default仅限本包的任意类
+	protected除了本包任意类，还包括其他包的子类
+	
+如果有try，那么catch和finally语句不能同时省略！
+
+hash冲突
+	ThreadLocal：开放定址法（完全存放在散列表中）
+	HashMap：链地址法（元素存放在链表中）
+	
+
+(int)'1' = 49
+(int)'a' = 97
+(int)'A' = 65
+
+String s = "a" + "b";			//编译器优化，s="ab"
+String s1 = "a";				
+String s2 = s1 + "b";			//StringBuilder.append -> new String
+System.out.println(s == "ab");	//true
+System.out.println(s2 == "ab");	//false
+
+int i = 10;
+i = i++;	//结果i=10
+
+++操作符只能对变量使用，以下编译错误:
+	i = ++(i++);
+	
+abstract class的abstract方法可以是：public，protected，默认
+interface的abstract方法一定是public，只不过可以隐式
+
+[F]Float f1 = 100;
+[T]Float f5 = 100.0f;
+[T]Float f6 = Float.valueOf(100);
+[T]Float f6 = Float.valueOf(100.0f);
+[T]float f2 = 100;
+[T]float f4 = 100.1f;
+
+class P {
+    public static int p1 = 10;
+    public static final int p2 = 20;
+    static{
+        System.out.println("P");
+    }
+}
+class S extends P {
+    public static int s1 = 1;
+    public static final int s2 = 2;
+    static{
+        System.out.println("S");
+    }
+}
+class Test51 {
+    public static void main(String[] args) {
+        //p 10
+//        System.out.println(S.p1);
+        //20
+//        System.out.println(S.p2);
+        //P S 1
+//        System.out.println(S.s1);
+        //2
+//        System.out.println(S.s2);
+        //无输出
+//        S[] sArr = new S[2];
+//        P[] pArr = new P[2];
+    }
+}
+
+执行顺序：静态代码块合并静态代码块 -> 普通代码块合并普通代码块 -> 最后才是构造函数
+
+Web工程的目录
+	appName
+		WEB-INFO
+			web.xml
+			classes
+				x.class
+			lib
+				x.jar
+HttpServlet容器响应Web客户请求流程如下：
+	1）Web客户向Servlet容器发出Http请求；
+	2）Servlet容器解析Web客户的Http请求；
+	3）Servlet容器创建一个HttpRequest对象，在这个对象中封装Http请求信息；
+	4）Servlet容器创建一个HttpResponse对象；
+	5）Servlet容器调用HttpServlet的service方法，这个方法中会根据request的Method来判断具体是执行doGet还是doPost，把HttpRequest和HttpResponse对象作为service方法的参数传给HttpServlet对象；
+	6）HttpServlet调用HttpRequest的有关方法，获取HTTP请求信息；
+	7）HttpServlet调用HttpResponse的有关方法，生成响应数据；
+	8）Servlet容器把HttpServlet的响应结果传给Web客户。
+	doGet() 或 doPost() 是创建HttpServlet时需要覆盖的方法.
+	
+构造方法不能被static、final、abstract、synchronized、native修饰
+
+关于List和List<>的赋值
+	只看尖括号里边的！！明确点和范围两个概念：
+		如果尖括号里的是一个类，那么尖括号里的就是一个点，比如List<A>,List<B>,List<Object>
+		如果尖括号里面带有问号，那么代表一个范围，<? extends A> 代表小于等于A的范围，<? super A>代表大于等于A的范围，<?>代表全部范围
+	1. 尖括号里的所有点之间互相赋值都是错，除非是俩相同的点
+	2. 尖括号小范围赋值给大范围，对，大范围赋值给小范围，错。如果某点包含在某个范围里，那么可以赋值，否则，不能赋值
+	3. List<?>和List 是相等的，都代表最大范围

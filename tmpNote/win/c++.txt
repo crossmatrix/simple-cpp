@@ -1,0 +1,483 @@
+不能进行+-操作的指针
+	this指针
+	void指针
+	函数指针
+
+c++的一个特征：成员函数被调用时，会把实例对象传到ecx中，然后再push参数
+
+空struct实例变量会有1byte
+并不是所有NULL pointer都不能调用函数，如果此成员函数不使用this域里的数据，仍可正常使用
+
+struct/class作为函数参数传递
+	1.[低效]整个struct/class数据会被复制到函数中使用（函数内修改无效）
+	2.[高效]可将函数参数改为 struct/class pointer（函数内修改有效）
+	3.析构
+		void f(Person p) {
+			p.x *= 10;
+			p.y *= 20;
+			//这里会有一次Person拷贝的析构
+		}
+		void f2(Person* p) {
+			p->x *= 10;
+			p->y *= 20;
+			//这里没有Person析构
+		}
+struct和class区别：
+	struct默认访问权限是public
+	struct默认继承权限是public
+	
+this指针在成员函数被调用时，以ecx方式传入，然后在成员函数栈上以第一个局部变量的方式存在
+
+构造函数细节：
+	一旦显示创建了构造函数，就必须严格按照构造函数的参数创建对象
+	构造函数使用其他构造函数
+		MyStr(int size) {}
+		MyStr(): MyStr(1024) {}
+
+关于对象创建的细节：
+	class Node {
+	public:
+		int a;
+		int b;
+
+		Node() {
+			printf("Node");
+		}
+	};
+
+	//---------------Node没有显示构造函数
+				
+		//n1只是申明一个变量，没有内存空间，不会触发构造函数，在没有任何赋值之前，不可以被使用
+		//n2编译错误：使用了未初始化变量
+		//Node n1;
+		//Node n2 = n1;
+
+		//只要对n1任意成员赋值，就会为n1分配所有成员空间（未赋值的成员是未知初始值），不会触发构造函数
+		//n2完全copy n1数据，不会触发构造函数
+		//Node n1;
+		//n1.a = 10;
+		//Node n2 = n1;
+
+		//禁止写法，n1什么也不是
+		//Node n1();
+
+		//为n1分配所有成员空间，并将成员都置0，不会触发构造函数
+		//Node n1{};
+		
+		//为n1分配所有成员空间，并逐一赋值成员，不会触发构造函数
+		//Node n1{1, 2};
+
+	//---------------Node有显示构造函数
+
+		//为n1分配所有成员空间，未知初始值，会触发构造函数
+		//n2完全copy n1数据，不会触发构造函数
+		//Node n1;
+		//Node n2 = n1;
+
+		//禁止写法，n1什么也不是
+		//Node n1();
+
+		//为n1分配所有成员空间，未知初始值，会触发构造函数
+		//Node n1{};
+		
+		//错误：没有匹配的构造函数
+		//Node n1{1, 2};
+
+继承：
+	一旦存在继承，子类就会强制使用父类的构造函数
+	父类和子类所有字段在内存上是不同的区域（即使同名），按父子顺序排布，用不同父子类型可以取到，或者取的时候把所属类一起指明（Class::a）
+
+多层继承/多重继承，数据内存排布顺序取决于继承顺序（多态 父类指针指向子类对象 就是使用这个原理）
+	eg: 
+	struct X {int a; int b;};
+	struct Y {int c; int d;};
+	1. struct A : X, Y{};
+		ebp-10: a
+		ebp-0C: b
+		ebp-08: c
+		ebp-04: d
+	2. struct A : Y, X{};
+		ebp-10: c
+		ebp-0C: d
+		ebp-08: a
+		ebp-04: b
+
+析构常用于清理工作：
+	比如释放堆空间（malloc/new申请，free/delete释放）
+
+析构函数调用时机：
+	1.局部变量：在函数执行完毕后触发
+	2.全局变量：在程序结束时触发
+	3.手动delete
+		
+创建对象的地方：
+	1.全局变量区
+		Person p;
+	2.栈区（函数栈）
+		void f(){
+			Person p;
+		}
+	3.堆区
+		Person* p = new Person();
+		释放：delete p;
+		
+c中的malloc和free仅仅是申请和释放内存，c++中的new/new[]和delete/delete[]除了处理内存，还会触发ctor和dector！
+	new: 1.底层malloc 2.ctor
+	delete: 1.dector 2.底层free
+		delete只能释放 堆中的内存
+	
+	eg1:
+		Person* p = new Person(1, 2);
+		delete p;
+		
+		//Person需要有无参构造器
+		Person* pArr1 = new Person[3];
+		delete[] pArr1;
+		
+		//Person需要有构造器Person(int x, int y)
+		Person* pArr2 = new Person[3]{Person(1, 2), Person(2, 3), Person(3, 4)};
+		delete[] pArr2;
+	eg2:
+		int* i = new int[10];
+		delete[] i;
+		
+访问权限
+	1.private修饰的属性在外部仍可以通过指针访问到
+	2.struct默认访问权限是public，class的是private
+	3.class继承默认的继承方式是private
+		public继承保持父类的访问权限
+		private继承则强制改变父类权限为private	
+
+多态：为了让父类指针指向子类对象能正确使用子类方法
+	1.父类指针拥有不同形态
+	2.通过虚函数virtual和子类重写实现动态绑定
+	3.析构函数通常定义为virtual（父类指针指向子类对象用完后，需要清理的是子类对象）
+	4.只要父类指定了virtual的函数，子类/子类的子类等 可以加virtual标记也可以不加
+	
+虚表：虚函数列表(__vfptr)
+	只要虚函数>=1，就会存在虚表（虚表是一个地址，指向一个函数地址列表），并且虚表位于对象首地址（4字节）
+	对于类中的方法，只有一种情况是间接调用：指针调用虚函数
+	虚表可以简单理解为：当一个对象调用某个名字的函数时，根据虚表决定调用哪个从属类的同名函数
+	
+	class cls {
+	public:
+		void f1() {}
+		virtual void vf1() {}
+	};
+
+	void test() {
+		cls c;
+		//直接调用
+		c.f1();
+		//直接调用
+		c.vf1();
+
+		c3* p = &c;
+		//直接调用
+		p->f1();
+		//指针调用虚函数是间接调用（call [x]）
+		p->vf1();
+	}
+	
+虚表数量（对子类的实例对象而言）：
+	1.无继承，存在virtual就有1个虚表
+	2.继承1个类
+		仅父类有虚表：1个虚表，包含所有父类虚函数
+		仅子类有虚表：1个虚表，包含所有子类虚函数
+		父子都有虚表：1个虚表，包含 子类独有虚函数，父类独有虚函数，同名且在子类的虚函数
+		父子都没虚表：无虚表
+	3.多继承，有几个存在虚表的父类就有几个虚表
+
+	----------------
+	class Person {
+	private:
+		int age;
+		char name[10];
+	public:
+		Person(const char* name, int age) {
+			strcpy_s(this->name, name);
+			this->age = age;
+		}
+
+		void setAge(int age) {
+			this->age = age < 0 ? 0 : age;
+		}
+
+		//加上virtual后，父类指针指向子类对象，可以使用多态特性
+		virtual void log() {
+			printf("%s is %d\n", name, age);
+		}
+	};
+
+	class Student : public Person {
+	private:
+		int grade;
+	public:
+		Student(const char* name, int age) : Person(name, age) {
+			grade = 5;
+		}
+
+		void log() {
+			printf("this is student: %d\n", grade);
+			Person::log();
+		}
+	};
+
+	void main() {
+		//1.operator=
+		//Student s1("a", 1);
+		//Student s2("b", 2);
+		//s1 = s2;
+		//s1.setAge(10);
+		//s2.setAge(20);
+		//s1.log();
+		//s2.log();
+
+		//2.结构完全赋值
+		//Person p("a", 1);
+		//Student s("b", 2);
+		//可行（子类对象赋值给父类对象，严格来说是把子类数据copy到父类对象的内存空间）
+		//p.log();
+		//p = s;
+		//p.log();
+		//反过来则不行
+		//s = p;
+
+		//3.指针赋值
+		//可行（父类指针指向子类对象+动态绑定）
+		//Student s("a", 1);
+		//Person* p = &s;
+		//p->log();
+		//p->setAge(10);
+		//s.log();
+		//反过来则不行
+		//Person p("a", 1);
+		//Student* s = &p;
+
+		//4.new的形式
+		Person* p = new Student("aa", 10);
+		p->log();
+	}
+	
+	----------------
+	class cc1 {
+	public:
+		virtual void f1() {}
+	};
+	
+	class cc2 {
+	public:
+		virtual void f2() {}
+	};
+	
+	class cc3 {
+	public:
+		void f3() {}
+	};
+	
+	//cc4有1个虚表：cc1:f1, cc4:f4
+	class cc4 : public cc1 {
+		virtual void f4() {}
+	}
+	
+	//cc5有2个虚表：(cc1:f1, cc5:f5), (cc2:f2)
+	class cc5: public cc1, cc2, cc3 {
+		virtual void f5() {}
+	};
+	
+虚函数和纯虚函数
+	虚函数virtual修饰，需带有函数体，意义在于多态
+	纯虚函数virtual修饰，不带函数体，并且有固定格式"=0"，另外，拥有纯虚函数的类称为抽象类，不能直接实例化，非抽象子类必须实现父类的纯虚函数
+	eg:
+		class Shape {
+		public:
+			virtual float area() = 0;
+		};
+
+模板
+	1.函数
+		template<class T...>
+		type func(...){
+		}
+	2.类
+		template<class T...>
+		class xx{
+		};
+		
+引用和指针的形式很像（指针：type*，引用：type&）
+	相同：
+		引用和指针在汇编上完全一致，存储的都是地址
+	区别：
+		pointer和ref都存着地址，但是
+			1.ref必须声明时就初始化，指针可以先声明后赋值
+			2.+-运算意义不同，pointer仅仅改变地址，ref是改变存储地址指向的原变量
+			3.赋值意义不同，pointer可以改变指向的变量，ref改变的是 指向变量的值
+			4.const指针：指针指向的数据不可被修改，指针本身可指向新数据
+			5.const引用：一切都不可修改（一旦赋值，不可修改）
+	eg:
+		int x = 1;
+		int* p = &x;
+		int& r = x;
+		
+		//p++;
+		//r++;
+		
+		//p = (int*)123;
+		//r = 123;		
+		
+运算符重载
+	运算符重载通常使用常引用（const&），当然也可以用指针来实现，但需注意指针实现的时候变量也要相应变为指针
+
+	class Vec {
+	public:
+		int x;
+		int y;
+
+		Vec(int x, int y) {
+			this->x = x;
+			this->y = y;
+		}
+
+		void log() {
+			printf("%d %d\n", x, y);
+		}
+
+		//++ --运算符需要额外指定一个没有实际意义的参数
+		Vec operator++(int) {
+			x++;
+			y++;
+			return *this;
+		}
+
+		Vec operator+=(const Vec& other) {
+			x += other.x;
+			y += other.y;
+			return *this;
+		}
+
+		//虽然返回是自己，如果接收者是其他变量，会完全copy到接收者中
+		Vec operator+(const Vec& other) {
+			x += other.x;
+			y += other.y;
+			return *this;
+		}
+
+		bool operator>(const Vec& other) {
+			return x > other.x && y > other.y;
+		}
+	};
+		
+拷贝构造函数
+	c++中所有类都有一个默认的 拷贝构造函数：X(const X& obj)
+	顾名思义，这个构造器用于通过"浅拷贝"创建新对象
+	浅拷贝：
+		指针变量仅仅是普通复制，这很容易出现不可预知问题，比如：某个对象释放了内存空间，另一个对象仍在持有释放后的变量
+	所以对于含有指针的情况，需要手动重写 拷贝构造函数
+	
+	eg：
+		class A {
+		private:
+			int pALen;
+			int* pA;
+			int aA[3];
+		public:
+			~A() {
+				printf("dector A\n");
+				delete(pA);
+			}
+
+			A() {
+				printf("A ctor 1\n");
+				pALen = 3;
+				pA = new int[pALen] {1, 1, 1};
+				for (int i = 0; i < 3; i++) {
+					aA[i] = 2;
+				}
+			}
+
+			A(const A& obj) {
+				printf("A ctor 2\n");
+				pALen = obj.pALen;
+				pA = new int[pALen];
+				memcpy(pA, obj.pA, pALen * sizeof(int));
+				for (int i = 0; i < 3; i++) {
+					aA[i] = obj.aA[i];
+				}
+			}
+		};
+
+		class B : public A {
+		public:
+			int* pB = new int[] {3, 3, 3};
+			int aB[3] = { 4, 4, 4 };
+
+			~B() {
+				printf("dector B\n");
+				delete(pB);
+			}
+
+			B() {
+				printf("B ctor 1\n");
+			}
+
+			//test
+			//B(const B& obj) {
+			//B(const B& obj) : A(obj) {
+			//	printf("B ctor 2\n");
+			//}
+		};
+
+		void main1() {
+			A a1;
+			A a2(a1);
+			A a3 = a1;
+		}
+
+		void main() {
+			//A ctor1 -> B ctor1 -> dector B -> dector A
+			B b1;
+
+			B b2(b1);
+			//B b2 = b1;
+
+			//0.创建对象时，先执行成员属性的默认赋值，再执行构造器
+			//1.不写B的copy-ctor：A ctor2
+			// pA不同（A的copy-ctor），pB相同（B先执行0特性，然后由于B的默认copy-ctor，浅拷贝）
+			//2.写Bcopy-ctor，但是什么也不做：A ctor1 -> B ctor2
+			// pA不同（A的ctor），pB不同（B的copy-ctor，由于0的特性）
+			//3.写Bcopy-ctor，并继承Acopy-cotr：A ctor2 -> B ctor2
+			// pA不同（A的copy-cotr）,pB不同（B的copy-ctor，由于0的特性）
+		}
+
+总结：	
+	不推荐在构造器外初始化成员！
+	不管是普通构造器还是copy构造器，都应该把成员初始化好
+	父类重写了copy构造器，子类最好也写copy构造器并且一定要继承父类的copy构造器
+	赋值运算默认也是浅拷贝，也会触发copy构造器，解决方法：重写operator=（注意判断旧指针是否NULL，如果不为NULL，需要先delete）
+
+static：c++中static是一个域的全局变量
+	单例：
+		class A {
+		private:
+			static A* _inst;
+			A() {
+			
+			}
+		public:
+			static A* getInst() {
+				if (_inst == NULL) {
+					_inst = new A();
+				}
+				return _inst;
+			}
+
+			void log() {
+				printf("be called\n");
+			}
+		};
+		A* A::_inst = NULL;
+
+		void main() {
+			A* a1 = A::getInst();
+		}
+		

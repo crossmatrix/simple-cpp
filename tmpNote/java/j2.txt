@@ -1,0 +1,513 @@
+装/拆箱：valueOf, xxxValue
+	//手动装箱 int -> Integer
+	Integer i1 = Integer.valueOf(10);
+	Integer i2 = new Integer(20);
+	//手动拆箱
+	int v1 = i1.intValue();
+	//自动装箱（java自动装箱调用的是valueOf）
+	Integer i3 = 10;
+	//自动拆箱（java自动拆箱调用的是xxxValue）
+	int v2 = i3;
+
+Object obj = true ? 1 : 1.5;
+	1.不管是int 1还是double 1.5都会自动装箱然后传给Object
+	2.三元运算符是整体，所以根据返回类型转为最高类型原则，结果应该是Double
+	3.结果是：1.0
+	
+各包装类valueOf返回对象详情
+	Float/Double: new
+	Long/Integet/Short/Character: 特定区间缓存（-128 ~ 127），其余new
+	Byte/Boolean: 缓存
+	
+1.包装类的计算表达式返回结果是值，如果接受类型是包装类，会自动装箱
+2.包装类和值比较会转为值再比较
+3.包装类的equals重写为：先判定类型，再转为值比较值
+	eg1:
+		Integer a = new Integer(1);
+		Integer b = new Integer(1);
+		//a != b: ab是不同的对象
+		
+		Integer a = 1;
+		Integer b = 1;
+		//a == b: 存在自动装箱，但ab是同一个对象，因为Integer.valueOf的实现表明 会在-128~127之间返回同一个Integer的缓存对象，不在这个区间才会new Integer
+		
+		Integer a = 128;
+		Integer b = 128;
+		//a != b: 原理同上
+		
+		Integer a = 10;
+		int b = 10;
+		//a == b: 基础类型和包装类比较都是比较值！！
+	eg2:
+		Integer a = 1;
+		Integer b = 2;
+		Integer c = 3;
+		Integer d = 3;
+		Integer e = 321;
+		Integer f = 321;
+		Long g = 3L;
+		Long h = 2L;
+		//Long lv = 10;							//编译报错，但是long lv = 10 和 Long lv = 10L可以
+
+		System.out.println(c == d);				//true
+		System.out.println(e == f);				//false
+		System.out.println(c == (a + b));		//true 	a+b结果是值，跟c比较时c也会转为值
+		System.out.println(c.equals(a + b));	//true 	a+b自动转换为Integer，c也是Integer并且c的值和a+b的值相等
+		System.out.println(g == (a + b));		//true 	a+b结果是值，跟g比较时g也会转为值
+		System.out.println(g.equals(a + b));	//false	a+b自动转换为Integer，g是Long，类型不匹配
+		System.out.println(g.equals(a + h));	//true	a+b自动转换为Long，g也是Long并且值和a+b相等
+	
+-----------------------
+java String
+	1.public final class String extends Object implements Serializable, Comparable<String>, CharSequence
+	2.final char[] value
+	3.String a = "xx"
+		先查找常量池（String.equals）
+		没有-创建String对象，存入常量池-返回（整个过程创建1个对象）
+		有-直接返回String对象（整个过程不创建对象）
+	4.String a = new String("xx")
+		对象1："xx"本身作为字符串，常量池查找-没有就新建并存入常量池-有则什么也不干
+		对象2（返回值）：堆上创建新String对象，该对象的内容将和对象1的内容一致
+		过程创建1个或2个对象
+	5.intern 判断当前对象是否存在常量池中，
+		存在-返回的是同一个str对象，
+		不存在-返回该对象内容对应在常量池中的对象
+	6."abc" + "def"在编译时会被直接优化成"abcdef"
+	7.var + "abc" 最终也是new String，所以会在堆上创建新的str对象
+		新建StringBuilder，append变量和字符串，最后toString（new String）
+	8.由于String的不可变性，频繁的字符串拼接将会创建大量的对象影响性能，
+	 针对单线程java提供了可变的StringBuilder，多线程则有StringBuffer
+
+	//false
+	String s1 = new String("abc");
+    System.out.println(s1 == s1.intern());
+
+	//false
+	String s1 = new String("abc");
+	String s2 = "abc";
+	System.out.println(s1 == s2);
+
+	//false
+	String s1 = "abc";
+	String s2 = new String("abc");
+	System.out.println(s1 == s2);
+
+	//false
+	String s1 = new String("abc");
+	String s2 = new String("abc");
+	System.out.println(s1 == s2);
+
+	//true
+	String s1 = "abc";
+	String s2 = "abc";
+	System.out.println(s1 == s2);
+
+	//true
+	String s1 = new String("abc");
+	s1 = s1.intern();
+	String s2 = "abc";
+	System.out.println(s1 == s2);
+
+	//都是false
+	String s1 = new String("abc");
+	String s1 = "abc";
+	String s2 = s1 + "def";
+	String s3 = "abcdef";
+	System.out.println(s2 == s3);
+
+	//true
+	String s1 = "abcdef";
+	String s2 = "abc" + "def";
+	System.out.println(s1 == s2);
+	
+	//false, true, false
+	//String s1 = "abc";
+	//String s2 = new String("abc");
+	//System.out.println(s1 == s2);
+	//System.out.println(s1 == s2.intern());
+	//System.out.println(s2 == s2.intern());
+	
+String常用：
+	compareTo: 从前往后逐个比较字符，如果某位字符不同，就返回字符的差值；否则返字符串长度的差值
+	toCharArray
+	length
+	equals
+	split
+	trim
+	indexOf
+	lastIndexOf
+	subString
+
+
+StringBuffer主要继承AbstractStringBuilder
+	底层是一个char[]，可以降低字符串拼接的消耗，如果数组大小不够，会自动扩展
+	初始：16+给定str的len 或 直接给定大小
+	append扩容：
+		1.确定容量是否需要变化
+			是，max(旧数组len * 2 + 2, 新str总大小) + Arrays.copyOf
+		2.str.getChars 拷贝内容到数组
+	delete：
+		abcdef 删 cd: acefef
+		
+	new StringBuffer() char.len = 16
+	new StringBuffer("xx") char.len = "xx".length + 16
+	new StringBuffer(100) char.len = 100
+	
+	常用方法：
+	append(各种类型)
+	delete[startIdx, endIdx)
+	replace[startIdx, endIdx, targStr)
+	insert
+	reverse
+	indexOf
+	length
+	
+StringBuilder，线程不安全，但是比StringBuffer快，也继承AbstractStringBuilder
+
+Math:
+	round返回的是int/long
+	ceil/floor返回的是double
+	
+Arrays:
+	toString(各种类型数组)
+	sort
+	binarySearch
+	copyOf(arr, newSize)
+	fill
+	equals
+	asList
+
+日期1：
+	Date d = new Date();
+	SimpleDateFormat sdf = new SimpleDateFormat("yyyy MM dd hh-mm-ss");
+	System.out.println(sdf.format(d));
+日期2：
+	Calendar c = Calendar.getInstance();
+	System.out.println(c.get(Calendar.YEAR));
+日期3：
+	LocalDateTime ldt = LocalDateTime.now();
+	ldt.getYear();
+	DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:s");
+	System.out.println(fmt.format(ldt));
+	ldt = ldt.plus(Duration.ofDays(2));
+	ldt.plusDays(10);
+时间戳：
+	Instant
+	
+-----------------------
+数组缺点：大小固定；增删不易；类型单一
+
+(I)Collection extends Iterable
+	(I)List（itr, for:, fori）有序，可重复
+		ArrayList - (C)AbstractList - (C)AbstractCollection - Collection - Iterable
+		Vector（线程安全）
+		LinkedList
+	(I)Set（itr, for:）唯一
+		HashSet
+		LinkedHashSet
+		TreeSet
+(I)Map
+	HashMap
+		LinkedHashMap
+	Hashtable（线程安全）
+		Properties
+	TreeMap
+	
+Collection
+	add：E/Object（可以添加null，所以基础类型会被装箱）
+	addAll：Collection
+	remove：E/Object（可以移除null）
+	removeAll：Collection（只会移除自己集合中包含的元素）
+	contains
+	containsAll
+	size
+	clear
+	isEmpty
+	iterator
+	
+Iterable
+	Iterator iterator()
+Iterator（迭代器）
+	boolean hasNext()
+	E next()
+	
+	Iterator itr = xxxCollection.iterator();
+	while(itr.hasNext()){
+		Object obj = iter.next();
+	}
+	
+	for(x: col) 也是在调hasNext和next，可以理解为简写版的迭代器遍历
+
+List
+	get(index)
+	set(index, E)
+	add(E, index)
+	remove(index) 移除某int元素时需要装箱
+	indexOf/lastIndexOf
+	subList[startIdx, endIdx)
+	
+	核心：transient Object[] elementData
+		transient: 不被序列化
+		
+ArrayList的扩容
+	1.检测是否需要扩容的原理：arrLen + 1 > capacity
+	1.默认构造器初始容量10，也可以指定容量的构造器
+	2.后续按1.5倍扩容（capacity + (capacity >> 1)）
+	3.Arrays.copyOf
+Vector的扩容
+	无参：初始10，后续2倍扩容
+	有参：2倍扩容
+	
+LinkedList（双向链表）
+	addFirst
+	addLast/add
+	removeFirst/remove
+	removeLast
+	
+	核心：两个Node：first，last
+	处理index时，LinkedList的优化：index和size/2比较，决定从last找还是从first找
+
+HashSet
+	无序，唯一
+	常用方法基本都是Collection
+	HashSet底层是HashMap - HashMap：数组 + 单向链表/红黑树
+		节点为HashMap$Node implements Map.Entry，next记录横向链表
+	添加元素：
+		1.得到元素的hash（hashCode ^ （hashCode >>> 16）） - hash转为数组索引（hash & （table.length - 1））
+			异或高16位是为了得到的索引足够散列，table.length是2的幂次方是为了快速得到索引
+		2.该数组位置是否有元素
+			否，直接添加
+			是，hash + equals逐个比较这个链表，检查是否有相同元素
+				是，结束
+				否，检查链表元素是否到8
+					否：添加到此链表末尾
+					是：再检测数组大小是否到64
+						是，此链表将转为红黑树，存储新元素
+						否，数组扩容，添加到链表末尾
+		3.当前size > 加载阈值 触发扩容
+	
+	几个HashMap的常量
+	1.默认初始容量:16
+	2.加载因子：0.75
+	3.扩容倍率：2
+	4.尝试树化的链表长度：8
+	5.尝试树化的数组大小：64
+	
+	HashSet添加自定义类的对象时，如果需要自定义唯一性，可重写equals和hashCode
+	
+LinkedHashSet
+	有序，唯一
+	底层是LinkedHashMap - LinkedHashMap：数组 + 单+双向链表/红黑树
+		节点换为 LinkedHashMap$Entry extends HashMap$Node，新加了before和after
+		双向链表记录了Set的顺序，使添加和遍历有序
+	
+HashMap/LinkedHashMap
+	key和value可以是任意类型（甚至是null）
+	key是唯一的
+	之前的HashSet就是用了HashMap的Key的唯一性
+	
+	put(key, value)
+	get(key)
+	entrySet: key+value集合，类型为Map.Entry
+	keySet: key集合
+	values: value集合
+	
+	HashMap调优：https://blog.csdn.net/guanghuichenshao/article/details/81429454
+		减少hash冲突，提高检索效率：降低加载因子；提高容量；减少扩容次数（int（确定size / 0.75） + 1）
+
+Hashtable
+	线程安全，key和value都不能为null
+	底层为 数组 + 单向链表
+	初始容量11，加载因子0.75，扩容：*2+1
+	
+TreeSet
+	1.唯一，自定义排序或自然排序
+	2.底层是TreeMap：树
+	3.每加一个元素，都会遍历查找合适的插入位置；遍历过程如果出现相同key（compare/compareTo结果为0），否则覆盖value并退出（所以Comparator还能起到去重的作用）
+	4.TreeMap
+		如果指定Comparator（自定义排序），使用此 比较器 对Key 比较，升序
+		如果没指定Comparator（自然排序），Key强转为Comparable（所以如果没实现就会出现类型转换异常），再对Key比较
+	
+Collections（集合工具）
+	Collections.reverse();
+	Collections.shuffle();
+	Collections.sort();
+	Collections.swap();
+	Collections.max();
+	Collections.frequency();
+	Collections.copy();
+	Collections.replaceAll();
+
+HashMap思考：
+	//这也是为什么不推荐用Object作为key的原因，应该使用String或者Integer这样的固定值
+	
+	public static void main(String[] args) {
+		HashMap map = new HashMap();
+		Car c1 = new Car("bc", 101);
+		Car c2 = new Car("dz", 102);
+		map.put(c1, "c1");
+		map.put(c2, "c2");
+		System.out.println(map);
+
+		c1.id = 102;
+		//c1.change(102);
+		//c1的新hash和旧hash不同，但仍存在旧hash算出的索引位置
+		//若新旧hash算出的索引相同，就可以删除（自己equals为真），但大概率不同，所以这里删除失败
+		System.out.println(map.remove(c1));
+		System.out.println(map);
+
+		//c3和c1: hash不同，equals相同
+		//同样，只要c3的hash算出的table索引和c1一致就能覆盖，但大概率不同，所以会添加新元素
+		Car c3 = new Car("bc", 102);
+		map.put(c3, "c3");
+		System.out.println(map);
+
+		//c4和c1: hash相同，equals不同
+		//必定在c1的链表后添加新元素
+		Car c4 = new Car("bc", 101);
+		map.put(c4, "c4");
+		System.out.println(map);
+
+	}
+
+	class Car{
+		String name;
+		int id;
+		int oldID = -1;
+
+		public Car(String name, int id) {
+			this.name = name;
+			this.id = id;
+		}
+
+		//public void change(int id){
+		//    oldID = this.id;
+		//    this.id = id;
+		//}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			Car car = (Car) o;
+			return id == car.id && Objects.equals(name, car.name);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(name, oldID == -1 ? id : oldID);
+		}
+
+		@Override
+		public String toString() {
+			return "Car{" +
+					"name='" + name + '\'' +
+					", id=" + id +
+					'}';
+		}
+	}
+
+--------------------------
+泛型
+	基础类型不能使用泛型，包装类可以
+	
+	泛型类：
+		纯泛型成员属性 或 纯泛型数组 不能直接初始化
+			class C<T> {
+				//T t = new T();
+				//T[] ar = new T[5];
+			}
+		static成员或方法不能使用类的泛型
+		使用泛型时，默认Object
+	
+	泛型接口：
+		属性不能使用泛型
+	
+	泛型方法：
+		class D<T>{
+			//使用了<U>是泛型方法
+			//<T>是方法使用了类泛型
+			public <U> void say(T p1, U p2){}
+		}
+		
+		D<String> d = new D<>();
+		d.say("abc", 100);
+		
+	泛型通配：
+		List<?>: 任意类型
+		List<? extends AA>: AA或AA子类
+		List<? super AA>: AA或AA父类
+				
+--------------------------
+Thread start start0后，只是将此线程变为运行状态，具体调用由CPU调度
+
+进程创建后，会启动一个主线程；当所有线程执行完毕后，进程退出
+主线程退出不一定子线程退出，各线程之间没有关系
+
+Thread常用方式：
+	1.class A extends Thread - 重写run - new A().start()
+	2.class B implements Runable - 重写run - new Thread(new A()).start()
+	
+setPriority/getPriority
+interrupt：线程被wait/join/sleep处于等待状态时，interrupt可提前结束等待，并抛出InterruptedException
+yield：线程礼让，尝试让出CPU给其他线程执行，但具体让不让是由系统决定
+join：线程插队，插队线程执行完才让给之前线程
+
+守护线程：setDaemon(true)
+	某线程若被设为守护线程，当其他所有普通线程都结束后，守护线程会自动结束，比如垃圾回收
+	先setDaemon再start
+
+线程状态：
+	new
+	runnable(ready - running)
+	timedWaiting
+	waiting
+	blocked
+	terminated
+
+线程同步：为保证数据完整性，在某线程对数据操作时，其他线程不能对其操作
+	1.synchronized(obj){...}
+		静态：synchronized(ClassA.class){...}
+	2.synchronized void func(){...}
+		静态：static synchronized void func(){...}
+		
+释放锁的时机：
+	1.当前线程的同步方法或同步代码块 正常结束，break，return，触发未处理的Throwable
+	2.当前线程的同步方法或同步代码块 wait
+不会释放锁：sleep，yield
+
+--------------------------
+File file = new File([path])	//可以操作文件，也可以操作目录
+
+IO
+	字节流（二进制文件）
+		InputStream
+			FileInputStream
+			ObjectInputStream：处理流
+			BufferedInputStream：处理流
+		OutputStream
+			FileOutputStream
+			ObjectOutputStream：处理流
+				1.对象需要实现Serializable
+				2.static和transient修饰的属性不会被序列化
+				3.如果存在没有实现Serializable的成员，序列化会异常
+			BufferedOutputStream：处理流
+	字符流（文本文件）
+		Reader
+			FileReader
+			StringReader
+			InputStreamReader：字节流转字符流，可用于编码转换
+			BufferdReader：处理流，接收一个其他reader型的节点流，更高效的处理Reader
+			
+		Writer
+			FileWriter（只有close或flush才会保存）
+			StringWriter
+			OutputStreamWriter
+			BufferdWriter：处理流
+			
+	Properties（文件必须按"key=value"格式存储）
+		load(Reader/InputStream)
+		list/getProperty/setProperty
+		store(Writer/OutputStream)
+
+	io流使用完记得close释放资源

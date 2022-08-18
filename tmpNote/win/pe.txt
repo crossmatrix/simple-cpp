@@ -1,0 +1,381 @@
+PE指纹（查看二进制源文件）
+	1.4D 5A ---> MZ
+	2.3C的地址 ---> PE
+	
+pe结构头文件：winnt.h
+
+1.DOS部分
+	1.DOS头 IMAGE_DOS_HEADER(64)
+		WORD  e_magic，MZ
+		...
+		LONG  e_lfanew，pe头起始位置
+	2.DOS块（DOS Stub）这部分大小不固定，而且现在也没有实际使用的意义，可以随意修改
+2.PE文件头 IMAGE_NT_HEADERS32/IMAGE_NT_HEADERS64
+	1.PE标记 dword(4) 0x00004550
+	2.标准pe头 IMAGE_FILE_HEADER(20)
+		2: Machine，运行CPU需求，0（任意），14C（intel 386及后续），8664（x64）
+		2: NumberOfSections，节数量
+		4: TimeDateStamp
+		4: PointerToSymbolTable
+		4: NumberOfSymbols
+		2: SizeOfOptionalHeader，可选pe头大小，32位0xE0(224 byte)，64位0xF0(240 byte)
+		2: Characteristics，文件属性（转2进制，每一位有独立意义）
+			01 IMAGE_FILE_RELOCS_STRIPPED           0x0001  // Relocation info stripped from file.（文件中不存在重定位信息）
+			02 IMAGE_FILE_EXECUTABLE_IMAGE          0x0002  // File is executable.（可执行文件）
+			03 IMAGE_FILE_LINE_NUMS_STRIPPED        0x0004  // Line nunbers stripped from file.（不存在行信息）
+			04 IMAGE_FILE_LOCAL_SYMS_STRIPPED       0x0008  // Local symbols stripped from file.（不存在符号信息）
+			05 IMAGE_FILE_AGGRESIVE_WS_TRIM         0x0010  // Aggressively trim working set.（调整工作集）
+			06 IMAGE_FILE_LARGE_ADDRESS_AWARE       0x0020  // App can handle >2gb addresses.（应用程序可处理>2GB地址/64bit程序）
+			07 --
+			08 IMAGE_FILE_BYTES_REVERSED_LO         0x0080  // Bytes of machine word are reversed.（小尾方式）
+			09 IMAGE_FILE_32BIT_MACHINE             0x0100  // 32 bit word machine.（运行在32bit平台）
+			10 IMAGE_FILE_DEBUG_STRIPPED            0x0200  // Debugging info stripped from file in .DBG file.（不包含调试信息）
+			11 IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP   0x0400  // If Image is on removable media, copy and run from the swap file.（不能从可移动盘运行）
+			12 IMAGE_FILE_NET_RUN_FROM_SWAP         0x0800  // If Image is on Net, copy and run from the swap file.（不能从网络运行）
+			13 IMAGE_FILE_SYSTEM                    0x1000  // System File.（系统文件，比如驱动程序，不能直接运行）
+			14 IMAGE_FILE_DLL                       0x2000  // File is a DLL.（dll文件）
+			15 IMAGE_FILE_UP_SYSTEM_ONLY            0x4000  // File should only be run on a UP machine.（不能运行在多处理器计算机上）
+			16 IMAGE_FILE_BYTES_REVERSED_HI         0x8000  // Bytes of machine word are reversed.（大尾方式）
+			
+			eg: 
+				0x0102 -> 0000 0001 0000 0010
+					1 可执行文件
+					8 32bit
+				0x0022 -> 0000 0000 0010 0010
+					1 可执行文件
+					5 64bit
+	3.可选pe头 IMAGE_OPTIONAL_HEADER(0xE0/0xF0)
+		1.32版本，IMAGE_OPTIONAL_HEADER32
+			//------Standard fields------
+			WORD    Magic;							//0x010B(pe32) 0x020B(pe32+)
+			BYTE    MajorLinkerVersion;
+			BYTE    MinorLinkerVersion;
+			DWORD   SizeOfCode;
+			DWORD   SizeOfInitializedData;
+			DWORD   SizeOfUninitializedData;
+			DWORD   AddressOfEntryPoint;			//(+16)OEP，程序入口地址（rva to ImageBase）
+			DWORD   BaseOfCode;
+			DWORD   BaseOfData;
+			//------NT additional fields------
+			DWORD   ImageBase;						//(+8)虚拟内存镜像基址（pe文件运行展开的起始位置）
+			DWORD   SectionAlignment;				//内存对齐，常用0x1000（>=FileAlignment, is system page size general, 4k）
+			DWORD   FileAlignment;					//文件对齐，常用0x200/0x1000（512Byte）
+			WORD    MajorOperatingSystemVersion;
+			WORD    MinorOperatingSystemVersion;
+			WORD    MajorImageVersion;
+			WORD    MinorImageVersion;
+			WORD    MajorSubsystemVersion;
+			WORD    MinorSubsystemVersion;
+			DWORD   Win32VersionValue;
+			DWORD   SizeOfImage;					//(+16)整个pe运行时展开的大小<section align>
+			DWORD   SizeOfHeaders;					//"(DOS头+DOS块) + (PE标记+标准PE头+可选PE头) + 节表"的大小<file align>，也就是在文件中第一节的位置
+			DWORD   CheckSum;						//某些系统文件需要文件和检验
+			WORD    Subsystem;						//驱动(1) 图形(2) 控制台/dll(3)
+			WORD    DllCharacteristics;				//文件特性
+			DWORD   SizeOfStackReserve;
+			DWORD   SizeOfStackCommit;
+			DWORD   SizeOfHeapReserve;
+			DWORD   SizeOfHeapCommit;
+			DWORD   LoaderFlags;
+			DWORD   NumberOfRvaAndSizes;
+			IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];	//(+24)
+		2.64版本，IMAGE_OPTIONAL_HEADER64
+3.节表
+	n * IMAGE_SECTION_HEADER(40)
+		BYTE    Name[8];						//节名
+		union {
+			DWORD   PhysicalAddress;
+			DWORD   VirtualSize;
+		} Misc;									//节在<内存中>对齐前的大小（也叫未初始化大小）
+		DWORD   VirtualAddress;					//节在<内存中>的偏移（相对地址）
+		DWORD   SizeOfRawData;					//节在<文件中>对齐后的大小
+		DWORD   PointerToRawData;				//节在<文件中>的偏移（相对地址）
+		DWORD   PointerToRelocations;
+		DWORD   PointerToLinenumbers;
+		WORD    NumberOfRelocations;
+		WORD    NumberOfLinenumbers;
+		DWORD   Characteristics;				//节特性
+			#define IMAGE_SCN_CNT_CODE                   0x00000020  // Section contains code.
+			#define IMAGE_SCN_CNT_INITIALIZED_DATA       0x00000040  // Section contains initialized data.
+			#define IMAGE_SCN_CNT_UNINITIALIZED_DATA     0x00000080  // Section contains uninitialized data.
+			...
+			#define IMAGE_SCN_MEM_EXECUTE                0x20000000  // Section is executable.
+			#define IMAGE_SCN_MEM_READ                   0x40000000  // Section is readable.
+			#define IMAGE_SCN_MEM_WRITE                  0x80000000  // Section is writeable.
+	<align>
+4.节数据（各节仍遵守FileAlignment/SectionAlignment，都有内存对齐的填充数据）
+	第1节
+	...
+	第n节
+
+FileBuffer								ImageBuffer
+----------------------------------------------------------------
+dos头				 |					dos头								|
+标准pe头             |					标准pe头                            |
+可选pe头        SizeOfHeaders			可选pe头                            |
+节表                 |					节表                                |
+<FileAlignment>		 |					<SectionAlignment>                  |
+----------------PointerToRawData1		----------------VirtualAddress1     SizeOfImage
+...					 |					...                                 |
+...				SizeOfRawData			<SectionAlignment>                  |
+<FileAlignment>		 |					----------------VirtualAddress2     |
+----------------PointerToRawData2		...                                 |
+...					 |					<SectionAlignment>                  |
+...				SizeOfRawData
+<FileAlignment>		 |
+
+1.file.SizeOfHeaders == image.SizeOfHeaders
+2.fread得到的文件大小 == lastSection.PointerToRawData + lastSection.SizeOfRawData
+3.SizeOfImage == lastSection.VirtualAddress + sec align(lastSection.VirtualSize)
+4.foa: 以文件流形式计算，第一个字节为0，其他数据以此为基准计算偏移
+5.rva: 以ImageBase计算，第一个字节为0，其他数据以此为基准计算偏移
+6.fa: 以文件流形式计算，第一个字节为实际内存地址，其他数据以此为基准计算偏移
+7.va: 以ImageBase计算，第一个字节为实际内存地址，其他数据以此为基准计算偏移
+
+跳转硬编码计算（是va计算）
+	jmp 0x10002000
+		E9（0x10002000 - 下一行指令地址）
+	call 0x10002000
+		E8（0x10002000 - 下一行指令地址）
+	push 0x1
+		6A 01
+	
+--------------------notepad.exe文件注入messagebox sec1
+	MessageBox 	77811930
+	oep 		0000739d
+	imgbase 	01000000
+	第1节的内存偏移 00001000
+	第1节的文件偏移 00000400
+	文件注入点（第1节末，文件偏移：7b50） 6A 00 6A 00 6A 00 6A 00 E8 00 00 00 00 E9 00 00 00 00
+	new oep 	00001000 + (00007b50 - 00000400) = 8750
+	E8的地址	77811930 - (01000000 + 8750 + 8（4个push） + 5（下一指令位置）)<0100875d> = 768091d3
+	E9的地址	(01000000 + 739d) - (01000000 + 8750 + 8 + 5 + 5)<01008762> = ffffec3b
+
+1.新增节
+	1.SizeOfHeaders - (DOS头+DOS块+PE标记+标准准PE头+扩展PE头+已有节表) >= 2 * sizeof(IMAGE_SECTION_HEADER)
+	2.填充合理的节表数据（vs，va，fs，fa，character）
+	3.NumberOfSections
+	4.SizeOfImage
+	5.分配新空间增加节数据
+2.扩大最后一节
+	为什么不修改前面节的原因是，修改前面节会导致后面节内所有跟地址偏移相关的地方都要修改
+	1.节表vs和fs
+	2.SizeOfImage
+	3.分配新空间增加节数据
+3.合并节
+
+---------------------------------		
+	sec1
+		name			.text
+		virtual size	0x0000 7748
+		virtual address	0x0000 1000
+		raw size		0x0000 7800
+		raw address		0x0000 0400
+	sec2
+		name			.data
+		virtual size	0x0000 1ba8
+		virtual address	0x0000 9000
+		raw size		0x0000 0800
+		raw address		0x0000 7c00
+	sec3
+		name			.rsrc
+		virtual size	0x0000 7f20
+		virtual address	0x0000 b000
+		raw size		0x0000 8000
+		raw address		0x0000 8400
+
+节地址计算：
+	SecAlign(sec1.vs) + sec1.va = sec2.va
+	sec1.ra + sec1.rs = sec2.ra
+	
+	SecAlign(sec3.vs) + sec3.va = SizeOfImage
+	
+---------------------------------	
+静态链接库
+	1.编译生成lib
+	2.将lib和h文件放入要使用的工程
+	3.目标工程引入lib和h
+	4.#pragma comment(lib, "xx.lib")
+	5.#include "xx.h"
+动态链接库
+	1.编译生成lib和dll
+		h文件需要使用格式：extern "C" __declspec(dllexport) <type> <__stdcall> func();
+	2.将lib和dll放入目标工程目录，目标工程不需要引入lib和dll！
+	3.#pragma comment(lib, "xx.lib")
+	4.extern "C" __declspec(dllimport) <type> <__stdcall> func();
+
+编译目标程序时，静态链接库会直接以代码形式编译到程序中，动态链接库则分离
+extern "C"是以C风格导出函数，这主要用于区别c++导出同名函数的问题，c++风格导出的函数名字是混乱的
+dll的两种使用方式:
+	1.pragma comment(lib, "xx.lib") + extern import
+	2.使用函数指针：LoadLibrary("xx.dll") + GetProcAddress
+GetProcAddress
+	1.函数名
+	2.PSTR(函数导出序号)
+	
+option头最后一个字段：IMAGE_DATA_DIRECTORY DataDirectory[16]
+struct IMAGE_DATA_DIRECTORY{
+	DWORD   VirtualAddress;	//内存偏移
+    DWORD   Size;			//无用
+}
+
+1.导出表
+	导出表不是dll的特权，pe文件都可以有自己的导出表
+	
+	#define IMAGE_DIRECTORY_ENTRY_EXPORT          0   // Export Directory
+	
+	IMAGE_EXPORT_DIRECTORY
+		DWORD   Characteristics;
+		DWORD   TimeDateStamp;
+		WORD    MajorVersion;
+		WORD    MinorVersion;
+		DWORD   Name;					// rva
+		DWORD   Base;					// 最小导出序号
+		DWORD   NumberOfFunctions;		// 导出函数数量（最大序号-最小序号+1）
+		DWORD   NumberOfNames;			// 有名字的函数数量
+		DWORD   AddressOfFunctions;     // rva 元素大小=4 数量=NumberOfFunctions
+			可能会穿插很多rva=0的无效函数，这是为了填充导出索引
+		DWORD   AddressOfNames;         // rva 元素大小=4 数量=NumberOfNames
+			names表和ordinals表同偏移表示同一个函数的名字和realIndex
+		DWORD   AddressOfNameOrdinals;  // rva 元素大小=2 数量=NumberOfNames
+			其中存储的就是AddressOfFunctions的index（realIndex）
+	
+	通过名字查找：名字 -> 查Ordinals数组=真实index
+	通过导出序号查找：ordinal -> -base=真实index
+	
+2.重定位表
+	重定位表用于ImageBase冲突时，重新定位"程序自己的"函数或数据
+	也就是说，如果ImageBase没冲突，重定位表就没有意义（即便删掉整个重定位表".reloc"）
+	
+	exe通常没有重定位表，而dll有的原因：
+		对一个exe程序来说，内存空间中exe的ImageBase是最先确定的，而且也是唯一的
+		而exe程序可能会用到很多dll，如果dll的ImageBase一旦冲突，就需要重新定位
+	
+	过保护（过驱动保护） - 内核重载
+	
+	修复项中，每两个字节表示一个数据，4|12
+	前四位等于3，表示是有效的数据；否则不是（32位高4位0011，64位高4位1010）
+	后12位是相对本页（内存页）的偏移值
+	重定位表之间连续不断的存储，每个表之间的大小由上个表的va和size推算，当va或size=0时结束
+	
+	每个修复项代表一个DWORD数据：WORD低12位 + va -> (PDWORD)fa
+	
+	内存页：0x1000(4096, 4k) -> 2^12
+	程序的虚拟4g空间：
+		低2g供程序使用：0000 0000 ~ 7FFF FFFF
+		高2g供内核使用：8000 0000 ~ FFFF FFFF
+	模块对齐：模块间对齐是为了提高运行速度，0x1 0000(64k)
+	
+	#define IMAGE_DIRECTORY_ENTRY_BASERELOC       5   // Base Relocation Table
+	
+	1.VirtualAddress(4) + SizeOfBlock(4)
+	b1+b2|b3+b4
+	b5+b6|...
+	2.VirtualAddress(4) + SizeOfBlock(4)
+	...
+	n.VirtualAddress(0) + SizeOfBlock(0)
+	
+测试：手动修改ImageBase，然后修复重定位表
+	需注意：每个item都需要计算修复
+	
+3.IAT表
+	直接调用
+		call 0x123
+		E8 
+	间接调用
+		call dword ptr ds:[0x123]
+		FF 15
+
+	程序调用dll的"外部函数"，编译时记录的是函数名，
+	运行时，当所有dll加载完成后，会替换成真正的函数地址
+	这同样是因为ImageBase可能出现冲突
+	
+	静态链接库是直接编译进程序，所以调用静态库的方法是不会写入IAT表的
+	
+	IAT表的两种查找方式
+		1.直接通过data directory查找（未成功）
+		2.通过导入表的FirstThunk查找
+
+	#define IMAGE_DIRECTORY_ENTRY_IAT            12   // Import Address Table
+	
+4.导入表
+	#define IMAGE_DIRECTORY_ENTRY_IMPORT          1   // Import Directory
+
+	typedef struct _IMAGE_IMPORT_DESCRIPTOR {
+		union {
+			DWORD   Characteristics;
+			DWORD   OriginalFirstThunk;				//RVA 指向INT(import name table)，表宽DWORD
+		} DUMMYUNIONNAME;
+		DWORD   TimeDateStamp;						// 0 if not bound,
+													// -1 if bound, and real date\time stamp in IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT （绑定导入表）
+		DWORD   ForwarderChain;
+		DWORD   Name;
+		DWORD   FirstThunk;							//RVA 指向IAT，表宽DWORD
+	} IMAGE_IMPORT_DESCRIPTOR;
+	
+	多个IMAGE_IMPORT_DESCRIPTOR结构连续存储，某结构的Characteristics为0时结束
+	
+	OriginalFirstThunk
+		首位为1，则首位置0后表示函数序号
+		首位为0，则为一个rva，指向函数名结构
+			typedef struct _IMAGE_IMPORT_BY_NAME {
+				WORD    Hint;		//无用
+				CHAR   Name[1];		//函数名，其实就是char*
+			} IMAGE_IMPORT_BY_NAME, *PIMAGE_IMPORT_BY_NAME;
+		运行时通过函数的id或name，查找到具体函数地址，然后bind给FirstThunk
+	
+	FirstThunk：运行时表示函数地址列表，文件中取决于TimeDateStamp
+		0：IAT未bind，IAT和INT指向相同数据，即函数名或函数序号
+		-1：IAT已bind，IAT中为具体函数地址，可与 绑定导入表 比较时间戳决定是否修复
+			优点：程序启动快，不用修复IAT
+			缺点：1.dll重定位 2.dll修改 都会使预先填写的地址无效
+
+5.绑定导入表
+	是对导入表的补充，仅当IAT已绑定才有意义，记录各导入库的时间戳
+	绑定导入表大多是windows自己的程序使用，通常自己写的程序没有此表
+	
+	pe启动流程：
+		导入表IAT TimeDateStamp=0，则在贴完所有动态库后，根据INT修复IAT
+		导入表IAT TimeDateStamp=-1，则在贴完所有动态库后，
+			检查每个动态库的DateTime和绑定导入表对应库的DateTime是否一致，不一致会修复IAT
+			若贴动态库时发生重定位，也会修复IAT
+			
+	遇到0结构表示结束
+	
+	#define IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   11   // Bound Import Directory in headers
+
+	typedef struct _IMAGE_BOUND_IMPORT_DESCRIPTOR {
+		DWORD   TimeDateStamp;
+		WORD    OffsetModuleName;
+		WORD    NumberOfModuleForwarderRefs;
+	} IMAGE_BOUND_IMPORT_DESCRIPTOR,  *PIMAGE_BOUND_IMPORT_DESCRIPTOR;
+
+	typedef struct _IMAGE_BOUND_FORWARDER_REF {
+		DWORD   TimeDateStamp;
+		WORD    OffsetModuleName;
+		WORD    Reserved;
+	} IMAGE_BOUND_FORWARDER_REF, *PIMAGE_BOUND_FORWARDER_REF;
+	
+导入表注入
+	原理：
+		pe运行时会加载导入表中指定的每项动态库，
+		这些库会优先从此pe的同级目录查找，
+		所以只要在pe同级目录下放入新增库，并且在pe的导入表中添加这个库的信息 就可以实现注入此库的目的
+	
+	测试：
+		1.一个空控制台，编译得到exe
+		2.一个dll，ProcAttach和ProcDetach分别给出提示信息，随便添加一个导出函数
+			pe运行时加载导入表依赖库的时候会判断 是否使用了此库的函数，如果一个函数都没有就不会加载此库
+		3.实现注入
+	
+	细节：
+		1.DWORD secSize = 
+			(impNum + 2) * IMPSIZE + 		//新增的导入表和用于结尾的zeroblock
+			8 + 							//INT中包含一个rva地址和结尾的DWORD 0
+			8 + 							//IAT中包含一个rva地址和结尾的DWORD 0
+			(2 + strlen(funcName) + 1) +	//IMAGE_IMPORT_BY_NAME
+			(strlen(dllName) + 1);			//dll name
+		2.新增节，把原来所有导入表copy到新节，并填充新导入表数据
+		3.FA2FOA
+		4.修改目录结构的VirtualAddress
+		

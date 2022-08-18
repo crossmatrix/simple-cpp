@@ -1,0 +1,30 @@
+函数式接口+lambda
+StreamAPI（并行流和串行流）
+接口（默认方法和静态方法）
+新的时间api
+
+Lambda
+	1.java中的lambda表达式本质是对象，不是函数，所以调用时
+	2.四个常用
+		Supplier<T>: T get()
+		Consumer<T>: void accept(T t)
+		Function<T, R>: R apply(T t)
+		Predicate<T>: boolean test(T t)
+	3.@FunctionalInterface 接口指明为函数式：只能有一个方法
+
+Stream
+	Stream不改变原集合，一旦执行了终止操作后就不能再使用
+	
+	1.Collection.stream(), Arrays.stream(arr)
+	2.链式操作：
+		stream.skip(2).limit(5).sorted().filter(x -> x.name.length() > 1).forEach(x -> {
+            System.out.println(x);
+        })
+	3.map：映射成另一个数据
+	4.终止操作：
+		allMatch/anyMatch/noneMatch
+		findFirst/findAny/max/min
+		count
+		forEach
+		reduce
+		collect(Collectors.toXX)

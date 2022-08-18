@@ -1,0 +1,183 @@
+网络通信协议
+	应用层：http，ftp，telnet，dns
+	传输层（tcp头：端口，序列号）：tcp，udp
+	网络层（ip头：ip地址）：ip，icmp
+	数据链路层（以太网头：mac）
+
+tcp
+	可靠，可进行大量数据传输
+udp
+	无需建立连接
+	数据，源，目的封装成数据包
+	数据包最大64k，不适合大量数据传输
+	
+tcp三次握手
+	client 				---------(SYN=1, seq=x)----------> 		server(syn_recv)
+	client(established) <------(SYN=1, ACK=1, seq=y, ack=x+1)---- 		server(syn_recv)
+	client 				---------(ACK=1, ack=y+1)-------->			server(established)
+	
+	为啥不是2次：
+		因为tcp需要双方都确定send和recv可靠，而2次只能确定client send/recv可靠
+	为啥不是4次：
+		浪费了网络资源
+	为啥是3次：
+		防止无效的历史连接
+	
+tcp半连接队列和SYN flood攻击：
+	client大量伪造ip发送syn包，server出现大量连接处于 发出SYN+ACK包然后等待中 的状态，这些就是半连接队列，如果半连接队列满了，server就无法处理其他正常请求了
+	
+	
+
+//从一个输入流（FileInputStream, SocketInputStream...）读完内容，返回字节数组
+public static byte[] getBytes(InputStream stream) throws Exception{
+	ByteOutputStream bos = new ByteOutputStream();
+	byte[] box = new byte[1000];
+	int len = 0;
+	while((len = stream.read(box)) != -1){
+		bos.write(box, 0, len);
+	}
+	byte[] rs = bos.toByteArray();
+	bos.close();
+	return rs;
+}
+
+natstat -anb
+	查看本地端口开放信息
+	
+反射
+	创建
+		1.Class.forName("xx")
+		2.[Class].class
+		3.inst.getClass()
+	常用方法
+		getField("xx")：仅public（可包含父类）
+			.get(mainObj)
+		getFields()：所有public
+		getDeclaredField("xx")：所有
+		getMethod("xx", TypeClass...)
+			.invoke(mainObj, paramObj...)
+		getMethods()
+		getDeclaredMethod("xx")
+		getConstructor(TypeClass...)
+			.newInstance
+			
+		私有方法或属性需要：setAccessible(true)
+		静态方法或属性mainObj也可以null
+		
+	类加载
+		1.loading
+			二进制数据到内存：class文件，jar包，其他数据形式
+		2.linking
+			vertification
+				确定不会破坏jvm环境而进行class的数据校验：比如cafebabe头验证，符号引用验证等
+				-Xverify=none关闭验证提高验证速度
+			preparation
+				static属性 默认初始化！
+				static final是直接 初始化值！
+			resolution
+				符号引用转为内存的直接引用
+		3.initialization
+			真正执行编写的java代码
+			<clinit>：按顺序合并static代码块和属性
+			线程同步保证类不会初始化多份
+			
+------------------------------
+sql
+	[dos]启动mysql服务
+		net start [xx]
+	创建数据库
+		CREATE DATABASE [xx] CHARACTER SET = [utf8] COLLATE = [utf8_general_ci]
+			COLLATE：字符校验，默认utf8_general_ci(不区分大小写)；utf8_bin(区分大小写)
+	数据库列表
+		SHOW DATABASES
+	查看某库的创建
+		SHOW CREATE DATABASE [xx]
+	删除数据库
+		DROP DATABASE [xx]
+	[dos]数据库备份
+		mysqldump -u [root] -p --databases [db01] [db02] > [e:/bak.sql]
+	恢复数据库
+		source [e:/bak.sql]
+	创建表
+		CREATE TABLE [xx] ([id] [INT], [name] [VARCHAR(255)]) 
+			CHARACTER SET = [utf8] COLLATE = [utf8_general_ci] ENGINE = INNODB
+	改表结构
+		1.增加列
+			ALTER TABLE [xx]
+				ADD COLUMN [xx] [VARCHAR(30) NOT NULL DEFAULT('')]
+				AFTER `resume`
+		2.删除列
+			ALTER TABLE [xx]
+				DROP COLUMN [xx]
+		3.修改列
+			ALTER TABLE [xx]
+				MODIFY COLUMN [xx] [VARCHAR(100)]
+		4.改列名
+			ALTER TABLE [xx]
+				CHANGE COLUMN [xx] [yy] [VARCHAR(100)]
+		5.改表名
+			RENAME TABLE [xx] TO [xx]
+		6.改表属性
+			ALTER TABLE [xx] [CHARACTER SET='utf8']
+		7.查看表结构
+			DESC [xx]
+	删表
+		DROP TABLE [xx]
+			
+	插入数据
+		INSERT INTO [xx] ([f1], [f2]) VALUES ([v1], [v2]), ([v3], [v4])...
+		注：
+		1.单双引号并不会影响number（前提是string能正常转为number）
+		2.字符串数据要加单双引号
+		3.not null且没有default的字段必须给出明确值
+		4.如果不明确指定插入的字段，需要填充所有字段
+	修改数据
+		update [xx] set [f1] = [f1] + 10, [f2] = [xx] <where>
+	删除数据
+		delete from [xx] <where>
+	查找数据
+		select [distinct] * from [x] <where>
+		select [x], [y] from [x]
+类型：
+	tinyint/smallint/mediumint/int/bigint [unsigned]: 1/2/3/4/8字节
+	float/double: 4/8字节
+	decimal(M, D)
+	char(size): size是0~255字符！
+	varchar(size): 可存储0~65535字节，前3个字节用于记录大小
+		utf8-max-size: (65535 - 3) / 3 = 21844字符
+		gbk-max-size: (65535 - 3)  / 2 = 32766字符
+	text
+	blob
+	date/time/datetime/timespan
+
+------------------------------
+	String url = "jdbc:mysql://localhost:3306/db01";
+		Properties properties = new Properties();
+		properties.setProperty("user", "root");
+		properties.setProperty("password", "123456");
+	//方式1
+	com.mysql.cj.jdbc.Driver driver = new com.mysql.cj.jdbc.Driver();
+	Connection connect = driver.connect(url, properties);
+	//方式2
+	Connection connection = DriverManager.getConnection(url, properties);
+
+-------------------
+	Properties properties = new Properties();
+	properties.load(new FileInputStream("src\\jdbc_\\connpool.properties"));
+	DataSource dataSource = DruidDataSourceFactory.createDataSource(properties);
+	Connection connection = dataSource.getConnection();
+
+	//QueryRunner runner = new QueryRunner(dataSource);
+	//int update = runner.update("insert into Employee values (?, ?, ?, ?, ?)", 50, "rabit", "worker", "男", 100.5);
+	//System.out.println("num=" + update);
+
+	QueryRunner runner = new QueryRunner(dataSource);
+	String sql = "select * from employee where id > ?";
+	List<A> list = runner.query(sql, new BeanListHandler<A>(A.class), 5);
+	for (A a : list) {
+		System.out.println(a);
+	}
+	
+	connection.close();
+
+	

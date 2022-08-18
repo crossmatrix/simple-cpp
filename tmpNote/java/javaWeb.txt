@@ -1,0 +1,77 @@
+1.tomcat启动：解压即可使用，需要配置好JAVA_HOME，到bin目录下（这里是git，也可以win运行bat）
+	./startup.sh
+	./shutdown.sh
+	./catalina.sh run
+	./catalina.sh stop
+2.http服务器的端口是80，如果把tomcat的连接端口改到80，在浏览器访问就不需要加端口号
+3.部署项目的两种方式：
+	1.webapps
+	2.conf\Catalina\localhost添加xxx.xml
+		<Context path="/xxx" docBase="E:\code\javabase\testweb_tomcat" />
+4.tomcat的默认启动工程位于：webapps\ROOT
+任意工程的默认启动页：index
+5.idea设置：File -> Settings -> Build, Execution, Deployment -> Application Servers + Tomcat Server
+6.idea部署时的常用设置：
+	1.Server
+		Application server name
+		On frame deactivation（热跟新）
+		端口
+	2.Deployment
+		Application context
+7.java web三大组件：Servlet, Filter, Listener
+8.Servlet: 运行在服务器的java程序，可以接收请求，响应数据
+
+9.web.xml配置自己的Servlet
+	public class MyServlet implements Servlet {
+		@Override
+		public void init(ServletConfig servletConfig) throws ServletException {
+
+		}
+
+		@Override
+		public ServletConfig getServletConfig() {
+			return null;
+		}
+
+		@Override
+		public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException, IOException {
+			System.out.println("myserv be called");
+		}
+
+		@Override
+		public String getServletInfo() {
+			return null;
+		}
+
+		@Override
+		public void destroy() {
+
+		}
+	}
+
+	<servlet>
+        <servlet-name>MyServlet</servlet-name>
+        <servlet-class>com.example.t1.MyServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>MyServlet</servlet-name>
+        <url-pattern>/my</url-pattern>
+    </servlet-mapping>
+	
+10.servlet生命周期：
+	ctor(第一次访问) - init(第一次访问) - service(每次访问) - doGet/doPost(每次访问) - destroy(关闭服务器)
+11.CustomServlet [e] HttpServlet [e] GenericServlet [i] Servlet, ServletConfig, Serializable
+12.ServletConfig，每个CustomServlet有自己的ServletConfig
+	getServletName
+	getInitParameter：web.xml servlet/init-param
+	getServletContext
+13.ServletContext，工程启动后创建，全局只有一个
+	getInitParameter：web.xml context-param
+	getContextPath
+	getRealPath("/")
+	getAttribute/setAttribute/removeAttribute：这三个设置后的数据，也是所有Servlet共享
+	
+14.req
+	分发 会带着域信息，并且访问到WEB-INFO内
+	重定向 则不会
+15.req和resp的中文乱码问题
