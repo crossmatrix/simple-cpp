@@ -251,11 +251,22 @@ namespace peTest {
 			log("%d %d", func1(30, 10), func2(30, 10));
 		}
 	}
+
+	void test10() {
+		char* path = res("testDll2.dll");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showData_0_Export(fileBuffer);
+
+		free(path);
+		free(fileBuffer);
+	}
 }
 
 using namespace peTest;
 
 int main() {
-	test9();
+	test10();
 	return 0;
 }

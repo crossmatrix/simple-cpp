@@ -352,3 +352,14 @@ void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DW
 	PDWORD p = (PDWORD)((DWORD)code + offsetToBase);
 	*p = targVa - (hNt->OptionalHeader.ImageBase + rvaPos + offsetToBase + 4);
 }
+
+void showData_0_Export(PVOID fileBuffer) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
+
+	PSTR name = (PSTR)rva2fa(fileBuffer, pData->Name);
+	log("%s", name);
+	log("%d %d %d", pData->Base, pData->NumberOfFunctions, pData->NumberOfNames);
+
+}
