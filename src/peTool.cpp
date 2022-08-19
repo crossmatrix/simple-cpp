@@ -76,7 +76,7 @@ void savePE(PVOID buffer, DWORD size, PCSTR path) {
 void showPE(PCSTR path) {
 	PVOID fileBuffer = 0;
 	long len = openPE(path, &fileBuffer);
-	log("fileSize\t 0x%p", len);
+	log("----------pe overview(fileSize: 0x%p)----------", len);
 
 	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 	if (hDos->e_magic != IMAGE_DOS_SIGNATURE) {
@@ -84,7 +84,7 @@ void showPE(PCSTR path) {
 		free(fileBuffer);
 		return;
 	}
-	log("----------------DOS_HEADER important info----------------");
+	log(".....DOS_HEADER key info.....");
 	log("ntOffset\t 0x%04X", hDos->e_lfanew);
 
 	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + hDos->e_lfanew);
@@ -95,12 +95,12 @@ void showPE(PCSTR path) {
 	}
 	PIMAGE_FILE_HEADER hStd = &hNt->FileHeader;
 	PIMAGE_OPTIONAL_HEADER hOp = &hNt->OptionalHeader;
-	log("----------------FILE_HEADER important info----------------");
+	log(".....FILE_HEADER key info.....");
 	log("machine\t\t 0x%04X", hStd->Machine);
 	log("secNum\t\t 0x%04X", hStd->NumberOfSections);
 	log("opSize\t\t 0x%04X", hStd->SizeOfOptionalHeader);
 	log("char\t\t 0x%04X", hStd->Characteristics);
-	log("----------------OPTIONAL_HEADER important info----------------");
+	log(".....OPTIONAL_HEADER key info.....");
 	log("magic\t\t 0x%04X", hOp->Magic);
 	log("oep\t\t 0x%p", hOp->AddressOfEntryPoint);
 	log("imgBase\t\t 0x%p", hOp->ImageBase);
@@ -116,7 +116,7 @@ void showPE(PCSTR path) {
 		log("dataDir_%d\t va: 0x%p sz: 0x%p", i + 1, dataDir[i].VirtualAddress, dataDir[i].Size);
 	}
 
-	log("----------------Section important info----------------");
+	log(".....Section key info.....");
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	for (int i = 0; i < hStd->NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
@@ -358,8 +358,58 @@ void showData_0_Export(PVOID fileBuffer) {
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
 	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
 
+	log("----------export table----------");
 	PSTR name = (PSTR)rva2fa(fileBuffer, pData->Name);
-	log("%s", name);
-	log("%d %d %d", pData->Base, pData->NumberOfFunctions, pData->NumberOfNames);
+	log("name: %s", name);
+	log("baseOrdinal: %d, funcNum: %d, nameNum: %d", pData->Base, pData->NumberOfFunctions, pData->NumberOfNames);
+	PDWORD funcAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfFunctions);
+	PDWORD nameAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfNames);
+	PWORD nameOrdAddr = (PWORD)rva2fa(fileBuffer, pData->AddressOfNameOrdinals);
 
+	log("exportOrdinal \trealIndex \tfuncAddr(rva) \tname");
+	for (int i = 0; i < pData->NumberOfFunctions; i++) {
+		if (funcAddr[i]) {
+			DWORD nameRva = 0;
+			for (int j = 0; j < pData->NumberOfNames; j++) {
+				if (nameOrdAddr[j] == i) {
+					nameRva = nameAddr[j];
+					break;
+				}
+			}
+			log("%d \t\t%d \t\t%p \t%s", i + pData->Base, i, funcAddr[i], nameRva ? (PSTR)rva2fa(fileBuffer, nameRva) : "noName");
+		}
+	}
+}
+
+//rva
+DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
+
+	int realIdx = ordinal - pData->Base;
+	if (realIdx >= 0 && realIdx < pData->NumberOfFunctions) {
+		PDWORD funcAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfFunctions);
+		return funcAddr[realIdx];
+	}
+	return 0;
+}
+
+//rva
+DWORD GetFuncByName(PVOID fileBuffer, PCSTR name) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
+	PDWORD funcAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfFunctions);
+	PDWORD nameAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfNames);
+	PWORD nameOrdAddr = (PWORD)rva2fa(fileBuffer, pData->AddressOfNameOrdinals);
+
+	for (int i = 0; i < pData->NumberOfNames; i++) {
+		PSTR funcName = (PSTR)rva2fa(fileBuffer, nameAddr[i]);
+		if (strcmp(funcName, name) == 0) {
+			DWORD realIdx = nameOrdAddr[i];
+			return funcAddr[realIdx];
+		}
+	}
+	return 0;
 }

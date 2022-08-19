@@ -24,5 +24,7 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa);
 bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT DWORD* targPos);
 void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DWORD targVa);
 void showData_0_Export(PVOID fileBuffer);
+DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal);
+DWORD GetFuncByName(PVOID fileBuffer, PCSTR name);
 
 #endif

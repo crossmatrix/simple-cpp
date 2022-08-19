@@ -257,10 +257,54 @@ namespace peTest {
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
+		showPE(path);
 		showData_0_Export(fileBuffer);
+
+		log("---------");
+		HMODULE mod = LoadLibrary("testDll2.dll");
+		if (mod) {
+			FARPROC fp1 = GetProcAddress(mod, "makeRight");
+			FARPROC fp2 = GetProcAddress(mod, "makeLeft");
+			FARPROC fp3 = GetProcAddress(mod, "makeMul");
+			FARPROC fp4 = GetProcAddress(mod, PSTR(18));
+			log("%p %p %p %p", fp1, fp2, fp3, fp4);
+			int rs1 = ((int(*)(int, int))fp1)(100, 2);
+			int rs2 = ((int(*)(int, int))fp2)(100, 2);
+			int rs3 = ((int(*)(int, int))fp3)(30, 2);
+			int rs4 = ((int(*)(int, int))fp4)(30, 2);
+			log("%d %d %d %d", rs1, rs2, rs3, rs4);
+		}
+		log("---------");
+		if (mod) {
+			log("mod ImageBase: %p\n", mod);
+
+			int test[] = { -1, 0, 3, 4, 12, 18, 19, 100 };
+			for (int i = 0; i < 8; i++) {
+				DWORD rs = GetFuncByOrdinal(fileBuffer, test[i]);
+				if (rs) {
+					log("valid: %d, %p", test[i], rs);
+					DWORD funcPos = (DWORD)mod + rs;
+					int v = ((int(*)(int, int))funcPos)(100, 2);
+					log("> %d", v);
+				}
+			}
+
+			PCSTR funcName = "makeLeft";
+			DWORD rs = GetFuncByName(fileBuffer, funcName);
+			if (rs) {
+				log("%p", rs);
+				DWORD funcPos = (DWORD)mod + rs;
+				int v = ((int(*)(int, int))funcPos)(100, 2);
+				log("> %d", v);
+			}
+		}
 
 		free(path);
 		free(fileBuffer);
+	}
+
+	void test11() {
+		
 	}
 }
 
