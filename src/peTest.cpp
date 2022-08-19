@@ -304,7 +304,19 @@ namespace peTest {
 	}
 
 	void test11() {
+		char* path = res("notepad.exe");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showData_0_Export(fileBuffer);
+
+		free(path);
+		free(fileBuffer);
+	}
+
+	void test12() {
 		char* path = res("testDll2.dll");
+		//char* path = res("notepad.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
@@ -313,11 +325,15 @@ namespace peTest {
 		free(path);
 		free(fileBuffer);
 	}
+
+	void test13() {
+		
+	}
 }
 
 using namespace peTest;
 
 int main() {
-	test11();
+	test13();
 	return 0;
 }

@@ -356,6 +356,10 @@ void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DW
 void showData_0_Export(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
+	if (!dataRva) {
+		log("no export info");
+		return;
+	}
 	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
 	log("----------export table----------");
 
@@ -427,6 +431,10 @@ bool IsZeroBlock(PVOID p, DWORD size) {
 void showData_5_Reloc(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
+	if (!dataRva) {
+		log("no reloc info");
+		return;
+	}
 	PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
 	log("----------reloc table----------");
 	
