@@ -65,7 +65,7 @@ namespace peTest {
 		//foa sec3: 0x8400 0x103FF
 		//rva: 0~1000~9000~b000~13000
 
-		LPVOID fileBuffer = 0;
+		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
 		DWORD rva1 = foa2rva(fileBuffer, 0);
@@ -229,6 +229,21 @@ namespace peTest {
 		//add sec(last or other)
 		//extend sec(last or other)
 		//merge
+
+		char* path = res("notepad.exe");
+		PVOID fileBuffer = 0;
+		DWORD oldFileSize = openPE(path, &fileBuffer);
+
+		showPE(path);
+
+		PVOID newBuffer = 0;
+		DWORD newFileSize = addSection(fileBuffer, 1, ".test", 800, &newBuffer);
+
+
+		savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
+
+		free(path);
+		free(fileBuffer);
 	}
 
 	#pragma comment(lib, "myDll.lib")
@@ -334,6 +349,6 @@ namespace peTest {
 using namespace peTest;
 
 int main() {
-	test13();
+	test8();
 	return 0;
 }

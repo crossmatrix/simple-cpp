@@ -116,7 +116,7 @@ void showPE(PCSTR path) {
 		log("dataDir_%d\t va: 0x%p sz: 0x%p", i + 1, dataDir[i].VirtualAddress, dataDir[i].Size);
 	}
 
-	log(".....Section key info.....");
+	log(".....SECTION_HEADER key info.....");
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	for (int i = 0; i < hStd->NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
@@ -455,4 +455,33 @@ void showData_5_Reloc(PVOID fileBuffer) {
 		}
 		pData = (PIMAGE_BASE_RELOCATION)((DWORD)pData + pData->SizeOfBlock);
 	}
+}
+
+//secIdx: [1, n], 0 is last sec
+DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
+	DWORD oldFileSize = lstSec->PointerToRawData + lstSec->SizeOfRawData;
+	
+	DWORD secNum = hNt->FileHeader.NumberOfSections;
+	if (secIdx == 0) {
+		secIdx = secNum;
+	}
+	if (secIdx <= 0 || secIdx > secNum) {
+		log("secIdx error: [%d, %d]", 1, secNum);
+		return 0;
+	}
+
+	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
+	DWORD newFileSize = oldFileSize + secSize;
+	log("%p %p %p", oldFileSize, newFileSize, secSize);
+
+	//*newBuffer = malloc_s(newFileSize);
+	DWORD afterSec = (DWORD)lstSec + sizeof(IMAGE_SECTION_HEADER) - (DWORD)fileBuffer;
+
+	//--------
+	ZeroMemory((PVOID)((DWORD)fileBuffer + afterSec), 0x400 - afterSec);
+	
+	
 }

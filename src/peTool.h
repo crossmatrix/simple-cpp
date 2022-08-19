@@ -27,5 +27,6 @@ void showData_0_Export(PVOID fileBuffer);
 DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal);
 DWORD GetFuncByName(PVOID fileBuffer, PCSTR name);
 void showData_5_Reloc(PVOID fileBuffer);
+DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer);
 
 #endif
