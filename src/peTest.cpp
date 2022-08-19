@@ -304,13 +304,20 @@ namespace peTest {
 	}
 
 	void test11() {
-		
+		char* path = res("testDll2.dll");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showData_5_Reloc(fileBuffer);
+
+		free(path);
+		free(fileBuffer);
 	}
 }
 
 using namespace peTest;
 
 int main() {
-	test10();
+	test11();
 	return 0;
 }

@@ -26,5 +26,6 @@ void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DW
 void showData_0_Export(PVOID fileBuffer);
 DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal);
 DWORD GetFuncByName(PVOID fileBuffer, PCSTR name);
+void showData_5_Reloc(PVOID fileBuffer);
 
 #endif

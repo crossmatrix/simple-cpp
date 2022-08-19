@@ -357,8 +357,8 @@ void showData_0_Export(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
 	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
-
 	log("----------export table----------");
+
 	PSTR name = (PSTR)rva2fa(fileBuffer, pData->Name);
 	log("name: %s", name);
 	log("baseOrdinal: %d, funcNum: %d, nameNum: %d", pData->Base, pData->NumberOfFunctions, pData->NumberOfNames);
@@ -412,4 +412,39 @@ DWORD GetFuncByName(PVOID fileBuffer, PCSTR name) {
 		}
 	}
 	return 0;
+}
+
+bool IsZeroBlock(PVOID p, DWORD size) {
+	PBYTE pb = (PBYTE)p;
+	for (int i = 0; i < size; i++) {
+		if (*(pb + i) != 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void showData_5_Reloc(PVOID fileBuffer) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
+	PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
+	log("----------reloc table----------");
+	
+	DWORD size = sizeof(IMAGE_BASE_RELOCATION);
+	while (!IsZeroBlock((PVOID)pData, size)) {
+		PIMAGE_SECTION_HEADER pSec = getSecByRva(fileBuffer, pData->VirtualAddress);
+		DWORD itemNum = (pData->SizeOfBlock - size) / 2;
+		log("belong sec: %s, baseVa: %p, blockSize: %p, itemNum: %d", pSec->Name, pData->VirtualAddress, pData->SizeOfBlock, itemNum);
+
+		PWORD fstItem = PWORD((DWORD)pData + size);
+		for (int i = 0; i < itemNum; i++) {
+			//4(IMAGE_REL_BASED_HIGHLOW)|12
+			WORD item = fstItem[i];
+			WORD value = item << 4;
+			value = value >> 4;
+			DWORD rva = pData->VirtualAddress + value;
+			log("\t[%d] org item: %04x, item value: %04x, rva: %p", i, item, value, rva);
+		}
+		pData = (PIMAGE_BASE_RELOCATION)((DWORD)pData + pData->SizeOfBlock);
+	}
 }
