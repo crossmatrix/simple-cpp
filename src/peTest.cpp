@@ -3,7 +3,7 @@
 namespace peTest {
 	const char* p1 = "E:/code/cpp/simple-cpp/res/";
 	const char* p2 = "D:/Code/vsDir/simple-cpp/res/";
-	const char* FILE_ROOT = p2;
+	const char* FILE_ROOT = p1;
 
 	char* res(const char* name) {
 		char* rs = (char*)malloc_s(50);
@@ -209,7 +209,7 @@ namespace peTest {
 		PVOID fileBuffer = 0;
 		long fileSize = openPE(path, &fileBuffer);
 
-		int secIdx = 1;	//01234
+		int secIdx = 0;	//-1,0,1,2
 		DWORD pos = 0;
 		bool isFind = findEmpty(fileBuffer, ARRAYSIZE(shellCode), secIdx, true, &pos);
 		if (isFind) {
@@ -236,11 +236,11 @@ namespace peTest {
 
 		showPE(path);
 
-		PVOID newBuffer = 0;
-		DWORD newFileSize = addSection(fileBuffer, 1, ".test", 800, &newBuffer);
+		//PVOID newBuffer = 0;
+		//DWORD newFileSize = addSection(fileBuffer, 1, ".test", 800, &newBuffer);
 
 
-		savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
+		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
 
 		free(path);
 		free(fileBuffer);
@@ -349,6 +349,6 @@ namespace peTest {
 using namespace peTest;
 
 int main() {
-	test8();
+	test13();
 	return 0;
 }

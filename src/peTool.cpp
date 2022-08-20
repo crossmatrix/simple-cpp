@@ -76,14 +76,13 @@ void savePE(PVOID buffer, DWORD size, PCSTR path) {
 void showPE(PCSTR path) {
 	PVOID fileBuffer = 0;
 	long len = openPE(path, &fileBuffer);
-	log("----------pe overview(fileSize: 0x%p)----------", len);
-
 	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 	if (hDos->e_magic != IMAGE_DOS_SIGNATURE) {
 		log("not mz");
 		free(fileBuffer);
 		return;
 	}
+	log("----------pe overview(fileSize: 0x%p)----------", len);
 	log(".....DOS_HEADER key info.....");
 	log("ntOffset\t 0x%04X", hDos->e_lfanew);
 
@@ -113,14 +112,14 @@ void showPE(PCSTR path) {
 	log("dllChar\t\t 0x%04X", hOp->DllCharacteristics);
 	PIMAGE_DATA_DIRECTORY dataDir = hOp->DataDirectory;
 	for (int i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++) {
-		log("dataDir_%d\t va: 0x%p sz: 0x%p", i + 1, dataDir[i].VirtualAddress, dataDir[i].Size);
+		log("dataDir_%d\t va: 0x%p sz: 0x%p", i, dataDir[i].VirtualAddress, dataDir[i].Size);
 	}
 
 	log(".....SECTION_HEADER key info.....");
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	for (int i = 0; i < hStd->NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
-		log("section_%d:", i + 1);
+		log("section_%d:", i);
 		log("    name\t %s", sec->Name);
 		log("    vs\t\t 0x%p", sec->Misc.VirtualSize);
 		log("    va\t\t 0x%p", sec->VirtualAddress);
@@ -243,7 +242,6 @@ PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
 
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
-		//[start, end)
 		DWORD start = sec->VirtualAddress;
 		DWORD end = sec->VirtualAddress + align(sec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
 		if (rva >= start && rva < end) {
@@ -260,7 +258,6 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
 
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
-		//[start, end)
 		DWORD start = sec->PointerToRawData;
 		DWORD end = sec->PointerToRawData + sec->SizeOfRawData;
 		if (foa >= start && foa < end) {
@@ -286,7 +283,7 @@ bool checkChunk(PVOID buffer, DWORD startOffset, DWORD endOffset, PVOID chunk, D
 	return true;
 }
 
-//result is foa, secIdx: 0 header, >0 section
+//result is foa, secIdx: -1 header, >=0 section
 bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT DWORD* targPos) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
@@ -294,20 +291,19 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 	//[start, end]
 	DWORD start = 0;
 	DWORD end = 0;
-	if (secIdx == 0) {
+	if (secIdx == -1) {
 		start = 0;
 		end = fstSec->PointerToRawData - 1;
 	} else {
-		if (secIdx <= hNt->FileHeader.NumberOfSections) {
-			PIMAGE_SECTION_HEADER sec = fstSec + (secIdx - 1);
+		if (secIdx < hNt->FileHeader.NumberOfSections) {
+			PIMAGE_SECTION_HEADER sec = fstSec + secIdx;
 			start = sec->PointerToRawData;
 			end = sec->PointerToRawData + sec->SizeOfRawData - 1;
 		} else {
-			log("secIdx error: %d, maxSecIdx: %d", secIdx, hNt->FileHeader.NumberOfSections);
+			log("secIdx = %d not in [0, %d)", secIdx, hNt->FileHeader.NumberOfSections);
 			return false;
 		}
 	}
-
 	if (chunkSize <= 0) {
 		log("size must > 0");
 		return false;
@@ -345,7 +341,7 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 	return isFind;
 }
 
-//offsetToBase: [0,n]
+//offsetToBase: [0, code len)
 void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DWORD targVa) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD rvaPos = foa2rva(fileBuffer, baseFoa);
@@ -440,8 +436,8 @@ void showData_5_Reloc(PVOID fileBuffer) {
 	
 	DWORD size = sizeof(IMAGE_BASE_RELOCATION);
 	while (!IsZeroBlock((PVOID)pData, size)) {
-		PIMAGE_SECTION_HEADER pSec = getSecByRva(fileBuffer, pData->VirtualAddress);
 		DWORD itemNum = (pData->SizeOfBlock - size) / 2;
+		PIMAGE_SECTION_HEADER pSec = getSecByRva(fileBuffer, pData->VirtualAddress);
 		log("belong sec: %s, baseVa: %p, blockSize: %p, itemNum: %d", pSec->Name, pData->VirtualAddress, pData->SizeOfBlock, itemNum);
 
 		PWORD fstItem = PWORD((DWORD)pData + size);
@@ -482,6 +478,4 @@ DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT
 
 	//--------
 	ZeroMemory((PVOID)((DWORD)fileBuffer + afterSec), 0x400 - afterSec);
-	
-	
 }
