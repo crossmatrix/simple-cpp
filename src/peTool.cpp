@@ -180,7 +180,7 @@ DWORD align(DWORD value, DWORD fmt) {
 DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
-	
+
 	if (foa >= 0) {
 		if (foa < fstSec->PointerToRawData) {
 			return foa;
@@ -433,7 +433,7 @@ void showData_5_Reloc(PVOID fileBuffer) {
 	}
 	PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
 	log("----------reloc table----------");
-	
+
 	DWORD size = sizeof(IMAGE_BASE_RELOCATION);
 	while (!IsZeroBlock((PVOID)pData, size)) {
 		DWORD itemNum = (pData->SizeOfBlock - size) / 2;
@@ -454,28 +454,75 @@ void showData_5_Reloc(PVOID fileBuffer) {
 }
 
 //secIdx: [1, n], 0 is last sec
-DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer) {
+//DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer) {
+//	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+//	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+//	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
+//	DWORD oldFileSize = lstSec->PointerToRawData + lstSec->SizeOfRawData;
+//	
+//	DWORD secNum = hNt->FileHeader.NumberOfSections;
+//	if (secIdx == 0) {
+//		secIdx = secNum;
+//	}
+//	if (secIdx <= 0 || secIdx > secNum) {
+//		log("secIdx error: [%d, %d]", 1, secNum);
+//		return 0;
+//	}
+//
+//	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
+//	DWORD newFileSize = oldFileSize + secSize;
+//	log("%p %p %p", oldFileSize, newFileSize, secSize);
+//
+//	//*newBuffer = malloc_s(newFileSize);
+//	DWORD afterSec = (DWORD)lstSec + sizeof(IMAGE_SECTION_HEADER) - (DWORD)fileBuffer;
+//
+//	//--------
+//	ZeroMemory((PVOID)((DWORD)fileBuffer + afterSec), 0x400 - afterSec);
+//}
+
+void showData_1_11_Import_Bound(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
-	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
-	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
-	DWORD oldFileSize = lstSec->PointerToRawData + lstSec->SizeOfRawData;
-	
-	DWORD secNum = hNt->FileHeader.NumberOfSections;
-	if (secIdx == 0) {
-		secIdx = secNum;
+	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+	if (!dataRva) {
+		log("no import info");
+	} else {
+		PIMAGE_IMPORT_DESCRIPTOR pData = (PIMAGE_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
+		log("----------import table----------");
+
+		while (!IsZeroBlock(pData, sizeof(IMAGE_IMPORT_DESCRIPTOR))) {
+			PSTR dllName = (PSTR)rva2fa(fileBuffer, pData->Name);
+			PDWORD pOFT = (PDWORD)rva2fa(fileBuffer, pData->OriginalFirstThunk);
+			PDWORD pFT = (PDWORD)rva2fa(fileBuffer, pData->FirstThunk);
+			DWORD funcNum = 0;
+
+			while (*pOFT != 0) {
+				if ((*pOFT & 0x80000000) == 0x80000000) {
+					DWORD funcOrdinal = *pOFT & 0x7fffffff;
+					log("oft: %p, ft: %p, <ordinal>\t %d", *pOFT, *pFT, funcOrdinal);
+				} else {
+					PIMAGE_IMPORT_BY_NAME pName = (PIMAGE_IMPORT_BY_NAME)rva2fa(fileBuffer, *pOFT);
+					log("oft: %p, ft: %p, <name>\t %s", *pOFT, *pFT, pName->Name);
+				}
+				pOFT++;
+				pFT++;
+				funcNum++;
+			}
+			log("dllName[%d]: %s, OFT/INT(rva): %p, FT/IAT(rva): %p, time: %d\n", funcNum, dllName, pData->OriginalFirstThunk, pData->FirstThunk, pData->TimeDateStamp);
+			pData++;
+		}
 	}
-	if (secIdx <= 0 || secIdx > secNum) {
-		log("secIdx error: [%d, %d]", 1, secNum);
-		return 0;
+
+	dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress;
+	if (!dataRva) {
+		log("no bound import info");
+	} else {
+		PIMAGE_BOUND_IMPORT_DESCRIPTOR pData = (PIMAGE_BOUND_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
+		log("----------bound import table----------");
+		DWORD fstBound = (DWORD)pData;
+		while (!IsZeroBlock(pData, sizeof(IMAGE_BOUND_IMPORT_DESCRIPTOR))) {
+			PSTR name = (PSTR)(fstBound + pData->OffsetModuleName);
+			log("%s(%p) %p", name, (DWORD)name - (DWORD)fileBuffer, pData->TimeDateStamp);
+			pData++;
+		}
 	}
-
-	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
-	DWORD newFileSize = oldFileSize + secSize;
-	log("%p %p %p", oldFileSize, newFileSize, secSize);
-
-	//*newBuffer = malloc_s(newFileSize);
-	DWORD afterSec = (DWORD)lstSec + sizeof(IMAGE_SECTION_HEADER) - (DWORD)fileBuffer;
-
-	//--------
-	ZeroMemory((PVOID)((DWORD)fileBuffer + afterSec), 0x400 - afterSec);
 }

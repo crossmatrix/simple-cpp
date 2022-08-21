@@ -342,7 +342,15 @@ namespace peTest {
 	}
 
 	void test13() {
-		
+		char* path = res("notepad.exe");
+		//char* path = res("testDll2.dll");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showData_1_11_Import_Bound(fileBuffer);
+
+		free(path);
+		free(fileBuffer);
 	}
 }
 
