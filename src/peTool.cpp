@@ -382,7 +382,7 @@ void showData_0_Export(PVOID fileBuffer) {
 }
 
 //rva
-DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal) {
+DWORD getFuncByOrdinal(PVOID fileBuffer, int ordinal) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
 	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
@@ -396,7 +396,7 @@ DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal) {
 }
 
 //rva
-DWORD GetFuncByName(PVOID fileBuffer, PCSTR name) {
+DWORD getFuncByName(PVOID fileBuffer, PCSTR name) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
 	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
@@ -414,14 +414,18 @@ DWORD GetFuncByName(PVOID fileBuffer, PCSTR name) {
 	return 0;
 }
 
-bool IsZeroBlock(PVOID p, DWORD size) {
-	PBYTE pb = (PBYTE)p;
-	for (int i = 0; i < size; i++) {
-		if (*(pb + i) != 0) {
-			return false;
+bool isZeroBlock(PVOID pos, DWORD size) {
+	if (size > 0) {
+		PBYTE pb = (PBYTE)pos;
+		for (int i = 0; i < size; i++) {
+			if (*(pb + i) != 0) {
+				return false;
+			}
 		}
+		return true;
+	} else {
+		return false;
 	}
-	return true;
 }
 
 void showData_5_Reloc(PVOID fileBuffer) {
@@ -434,13 +438,13 @@ void showData_5_Reloc(PVOID fileBuffer) {
 	PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
 	log("----------reloc table----------");
 
-	DWORD size = sizeof(IMAGE_BASE_RELOCATION);
-	while (!IsZeroBlock((PVOID)pData, size)) {
-		DWORD itemNum = (pData->SizeOfBlock - size) / 2;
+	DWORD typeSize = sizeof(IMAGE_BASE_RELOCATION);
+	while (!isZeroBlock((PVOID)pData, typeSize)) {
+		DWORD itemNum = (pData->SizeOfBlock - typeSize) / 2;
 		PIMAGE_SECTION_HEADER pSec = getSecByRva(fileBuffer, pData->VirtualAddress);
 		log("belong sec: %s, baseVa: %p, blockSize: %p, itemNum: %d", pSec->Name, pData->VirtualAddress, pData->SizeOfBlock, itemNum);
 
-		PWORD fstItem = PWORD((DWORD)pData + size);
+		PWORD fstItem = PWORD((DWORD)pData + typeSize);
 		for (int i = 0; i < itemNum; i++) {
 			//4(IMAGE_REL_BASED_HIGHLOW)|12
 			WORD item = fstItem[i];
@@ -453,33 +457,6 @@ void showData_5_Reloc(PVOID fileBuffer) {
 	}
 }
 
-//secIdx: [1, n], 0 is last sec
-//DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer) {
-//	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
-//	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
-//	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
-//	DWORD oldFileSize = lstSec->PointerToRawData + lstSec->SizeOfRawData;
-//	
-//	DWORD secNum = hNt->FileHeader.NumberOfSections;
-//	if (secIdx == 0) {
-//		secIdx = secNum;
-//	}
-//	if (secIdx <= 0 || secIdx > secNum) {
-//		log("secIdx error: [%d, %d]", 1, secNum);
-//		return 0;
-//	}
-//
-//	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
-//	DWORD newFileSize = oldFileSize + secSize;
-//	log("%p %p %p", oldFileSize, newFileSize, secSize);
-//
-//	//*newBuffer = malloc_s(newFileSize);
-//	DWORD afterSec = (DWORD)lstSec + sizeof(IMAGE_SECTION_HEADER) - (DWORD)fileBuffer;
-//
-//	//--------
-//	ZeroMemory((PVOID)((DWORD)fileBuffer + afterSec), 0x400 - afterSec);
-//}
-
 void showData_1_11_Import_Bound(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
@@ -489,7 +466,8 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 		PIMAGE_IMPORT_DESCRIPTOR pData = (PIMAGE_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
 		log("----------import table----------");
 
-		while (!IsZeroBlock(pData, sizeof(IMAGE_IMPORT_DESCRIPTOR))) {
+		DWORD typeSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
+		while (!isZeroBlock(pData, typeSize)) {
 			PSTR dllName = (PSTR)rva2fa(fileBuffer, pData->Name);
 			PDWORD pOFT = (PDWORD)rva2fa(fileBuffer, pData->OriginalFirstThunk);
 			PDWORD pFT = (PDWORD)rva2fa(fileBuffer, pData->FirstThunk);
@@ -519,10 +497,72 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 		PIMAGE_BOUND_IMPORT_DESCRIPTOR pData = (PIMAGE_BOUND_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
 		log("----------bound import table----------");
 		DWORD fstBound = (DWORD)pData;
-		while (!IsZeroBlock(pData, sizeof(IMAGE_BOUND_IMPORT_DESCRIPTOR))) {
+		DWORD typeSize = sizeof(IMAGE_BOUND_IMPORT_DESCRIPTOR);
+		while (!isZeroBlock(pData, typeSize)) {
 			PSTR name = (PSTR)(fstBound + pData->OffsetModuleName);
 			log("%s(%p) %p", name, (DWORD)name - (DWORD)fileBuffer, pData->TimeDateStamp);
 			pData++;
 		}
 	}
+}
+
+bool TryMoveBoundImportData(PVOID fileBuffer, DWORD notEmptyBegin, DWORD notEmptyLen) {
+	bool isSuc = false;
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PIMAGE_DATA_DIRECTORY pDir = &(hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT]);
+	DWORD dataRva = pDir->VirtualAddress;
+
+	if (dataRva) {
+		DWORD begin = (DWORD)rva2foa(fileBuffer, dataRva);
+		if (begin == notEmptyBegin) {
+			//log("%p %p %d %d", notEmptyBegin, begin, pDir->Size, notEmptyLen);
+			DWORD leftSpace = notEmptyLen - 32 - pDir->Size;
+			if (leftSpace >= 4) {
+				//copy
+				DWORD targBegin = notEmptyBegin + leftSpace;
+				PVOID dst = (PVOID)((DWORD)fileBuffer + targBegin);
+				PVOID src = (PVOID)((DWORD)fileBuffer + notEmptyBegin);
+				CopyMemory(dst, src, pDir->Size);
+				//clear
+				ZeroMemory(src, targBegin - notEmptyBegin);
+				//reset
+				pDir->VirtualAddress = foa2rva(fileBuffer, targBegin);
+				isSuc = true;
+			}
+		}
+	}
+	return isSuc;
+}
+
+//secIdx: [0, maxSecNum - 1], otherwise tail
+DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer){
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
+	DWORD oldFileSize = lstSec->PointerToRawData + lstSec->SizeOfRawData;
+
+	if (secIdx < 0 || secIdx > hNt->FileHeader.NumberOfSections) {
+		secIdx = hNt->FileHeader.NumberOfSections;
+	}
+	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
+	DWORD newFileSize = oldFileSize + secSize;
+	log("%d 0x%p 0x%p 0x%p", secIdx, oldFileSize, newFileSize, secSize);
+
+	//*newBuffer = malloc_s(newFileSize);
+
+	DWORD typeSize = sizeof(IMAGE_SECTION_HEADER);
+	DWORD beginFoa = (DWORD)lstSec + typeSize - (DWORD)fileBuffer;
+	DWORD endFoa = hNt->OptionalHeader.SizeOfHeaders;
+	PVOID beginFa = (PVOID)(beginFoa + (DWORD)fileBuffer);
+
+	bool isEmptyBehindSec = isZeroBlock(beginFa, endFoa - beginFoa);
+	if (!isEmptyBehindSec) {
+		if (!TryMoveBoundImportData(fileBuffer, beginFoa, endFoa - beginFoa)) {
+			log("no available header space for new section...");
+			return 0;
+		}
+		log("move bound finish!");
+	}
+
+	return secSize;
 }

@@ -225,31 +225,10 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-	void test8() {
-		//add sec(last or other)
-		//extend sec(last or other)
-		//merge
-
-		char* path = res("notepad.exe");
-		PVOID fileBuffer = 0;
-		DWORD oldFileSize = openPE(path, &fileBuffer);
-
-		showPE(path);
-
-		//PVOID newBuffer = 0;
-		//DWORD newFileSize = addSection(fileBuffer, 1, ".test", 800, &newBuffer);
-
-
-		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
-
-		free(path);
-		free(fileBuffer);
-	}
-
 #pragma comment(lib, "myDll.lib")
 	extern "C" __declspec(dllimport) int add(int, int);
 	extern "C" __declspec(dllimport) int sub(int, int);
-	void test9() {
+	void test8() {
 		int v1 = add(30, 10);
 		int v2 = sub(30, 10);
 		log("%d %d", v1, v2);
@@ -267,7 +246,7 @@ namespace peTest {
 		}
 	}
 
-	void test10() {
+	void test9() {
 		char* path = res("myDll2.dll");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
@@ -295,7 +274,7 @@ namespace peTest {
 
 			int test[] = { -1, 0, 3, 4, 12, 18, 19, 100 };
 			for (int i = 0; i < 8; i++) {
-				DWORD rs = GetFuncByOrdinal(fileBuffer, test[i]);
+				DWORD rs = getFuncByOrdinal(fileBuffer, test[i]);
 				if (rs) {
 					log("valid: %d, %p", test[i], rs);
 					DWORD funcPos = (DWORD)mod + rs;
@@ -305,7 +284,7 @@ namespace peTest {
 			}
 
 			PCSTR funcName = "makeLeft";
-			DWORD rs = GetFuncByName(fileBuffer, funcName);
+			DWORD rs = getFuncByName(fileBuffer, funcName);
 			if (rs) {
 				log("%p", rs);
 				DWORD funcPos = (DWORD)mod + rs;
@@ -318,7 +297,7 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-	void test11() {
+	void test10() {
 		char* path = res("notepad.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
@@ -329,7 +308,7 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-	void test12() {
+	void test11() {
 		char* path = res("myDll2.dll");
 		//char* path = res("notepad.exe");
 		PVOID fileBuffer = 0;
@@ -341,10 +320,10 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-	void test13() {
-		//char* path = res("notepad.exe");
+	void test12() {
+		char* path = res("notepad.exe");
 		//char* path = res("myDll2.dll");
-		char* path = res("test2.exe");
+		//char* path = res("test2.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
@@ -354,14 +333,34 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-	void test14() {
-		
+	void test13() {
+		//add sec(last or other)
+		//extend sec(last or other)
+		//merge
+
+		char* path = res("notepad.exe");
+		//char* path = res("test2.exe");
+		//char* path = res("myDll2.dll");
+		//char* path = res("myDll.dll");
+		PVOID fileBuffer = 0;
+		DWORD oldFileSize = openPE(path, &fileBuffer);
+
+		//showPE(path);
+
+		PVOID newBuffer = 0;
+		int secIdx = 0; //012,tail
+		DWORD newFileSize = addSection(fileBuffer, secIdx, ".test", 800, &newBuffer);
+
+		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
+
+		free(path);
+		free(fileBuffer);
 	}
 }
 
 using namespace peTest;
 
 int main() {
-	test14();
+	test13();
 	return 0;
 }

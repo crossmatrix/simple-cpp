@@ -24,10 +24,10 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa);
 bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT DWORD* targPos);
 void calcJmp(PVOID fileBuffer, DWORD baseFoa, byte* code, DWORD offsetToBase, DWORD targVa);
 void showData_0_Export(PVOID fileBuffer);
-DWORD GetFuncByOrdinal(PVOID fileBuffer, int ordinal);
-DWORD GetFuncByName(PVOID fileBuffer, PCSTR name);
+DWORD getFuncByOrdinal(PVOID fileBuffer, int ordinal);
+DWORD getFuncByName(PVOID fileBuffer, PCSTR name);
 void showData_5_Reloc(PVOID fileBuffer);
-//DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer);
 void showData_1_11_Import_Bound(PVOID fileBuffer);
+DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer);
 
 #endif
