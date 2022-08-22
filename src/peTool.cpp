@@ -507,7 +507,7 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 				pFT++;
 				funcNum++;
 			}
-			log("dllName[%d]: %s, OFT/INT(rva): %p, FT/IAT(rva): %p, time: %d\n", funcNum, dllName, pData->OriginalFirstThunk, pData->FirstThunk, pData->TimeDateStamp);
+			log("%s[%d], OFT/INT(rva): %p, FT/IAT(rva): %p, time: %d\n", dllName, funcNum, pData->OriginalFirstThunk, pData->FirstThunk, pData->TimeDateStamp);
 			pData++;
 		}
 	}

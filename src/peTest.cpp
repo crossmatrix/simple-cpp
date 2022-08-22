@@ -3,7 +3,7 @@
 namespace peTest {
 	const char* p1 = "E:/code/cpp/simple-cpp/res/";
 	const char* p2 = "D:/Code/vsDir/simple-cpp/res/";
-	const char* FILE_ROOT = p1;
+	const char* FILE_ROOT = p2;
 
 	char* res(const char* name) {
 		char* rs = (char*)malloc_s(50);
@@ -120,7 +120,7 @@ namespace peTest {
 	void logSec(PIMAGE_SECTION_HEADER sec, int id) {
 		if (sec != NULL) {
 			log("[%d] %s %p %p", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
-		} 
+		}
 	}
 
 	void test5() {
@@ -131,9 +131,9 @@ namespace peTest {
 		openPE(path, &fileBuffer);
 		PIMAGE_SECTION_HEADER sec = NULL;
 
-		sec	= getSecByFoa(fileBuffer, 0);
+		sec = getSecByFoa(fileBuffer, 0);
 		logSec(sec, 1);
-		
+
 		sec = getSecByFoa(fileBuffer, 0x3FF);
 		logSec(sec, 2);
 		sec = getSecByFoa(fileBuffer, 0x3FF + 1);
@@ -246,7 +246,7 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-	#pragma comment(lib, "myDll.lib")
+#pragma comment(lib, "myDll.lib")
 	extern "C" __declspec(dllimport) int add(int, int);
 	extern "C" __declspec(dllimport) int sub(int, int);
 	void test9() {
@@ -268,7 +268,7 @@ namespace peTest {
 	}
 
 	void test10() {
-		char* path = res("testDll2.dll");
+		char* path = res("myDll2.dll");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
@@ -276,7 +276,7 @@ namespace peTest {
 		showData_0_Export(fileBuffer);
 
 		log("---------");
-		HMODULE mod = LoadLibrary("testDll2.dll");
+		HMODULE mod = LoadLibrary("myDll2.dll");
 		if (mod) {
 			FARPROC fp1 = GetProcAddress(mod, "makeRight");
 			FARPROC fp2 = GetProcAddress(mod, "makeLeft");
@@ -330,7 +330,7 @@ namespace peTest {
 	}
 
 	void test12() {
-		char* path = res("testDll2.dll");
+		char* path = res("myDll2.dll");
 		//char* path = res("notepad.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
@@ -342,8 +342,9 @@ namespace peTest {
 	}
 
 	void test13() {
-		char* path = res("notepad.exe");
-		//char* path = res("testDll2.dll");
+		//char* path = res("notepad.exe");
+		//char* path = res("myDll2.dll");
+		char* path = res("test2.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
@@ -352,11 +353,15 @@ namespace peTest {
 		free(path);
 		free(fileBuffer);
 	}
+
+	void test14() {
+		
+	}
 }
 
 using namespace peTest;
 
 int main() {
-	test13();
+	test14();
 	return 0;
 }
