@@ -350,9 +350,16 @@ namespace peTest {
 		PVOID newBuffer = 0;
 		int secIdx = 0; //012,tail
 		DWORD newFileSize = addSection(fileBuffer, secIdx, ".test", 800, &newBuffer);
-
 		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
 
+		if (newBuffer) {
+			char* savePath = res("notepad_test.exe");
+			savePE(newBuffer, newFileSize, savePath);
+			log("save finish: %s", savePath);
+
+			free(savePath);
+			free(newBuffer);
+		}
 		free(path);
 		free(fileBuffer);
 	}

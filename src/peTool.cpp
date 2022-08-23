@@ -506,7 +506,7 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 	}
 }
 
-bool TryMoveBoundImportData(PVOID fileBuffer, DWORD notEmptyBegin, DWORD notEmptyLen) {
+bool tryMoveBoundImportData(PVOID fileBuffer, DWORD notEmptyBegin, DWORD notEmptyLen) {
 	bool isSuc = false;
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_DATA_DIRECTORY pDir = &(hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT]);
@@ -517,12 +517,12 @@ bool TryMoveBoundImportData(PVOID fileBuffer, DWORD notEmptyBegin, DWORD notEmpt
 		if (begin == notEmptyBegin) {
 			//log("%p %p %d %d", notEmptyBegin, begin, pDir->Size, notEmptyLen);
 			DWORD leftSpace = notEmptyLen - 32 - pDir->Size;
-			if (leftSpace >= 4) {
+			if (leftSpace >= sizeof(IMAGE_SECTION_HEADER)) {
 				//copy
 				DWORD targBegin = notEmptyBegin + leftSpace;
 				PVOID dst = (PVOID)((DWORD)fileBuffer + targBegin);
 				PVOID src = (PVOID)((DWORD)fileBuffer + notEmptyBegin);
-				CopyMemory(dst, src, pDir->Size);
+				memcpy(dst, src, pDir->Size);
 				//clear
 				ZeroMemory(src, targBegin - notEmptyBegin);
 				//reset
@@ -532,6 +532,98 @@ bool TryMoveBoundImportData(PVOID fileBuffer, DWORD notEmptyBegin, DWORD notEmpt
 		}
 	}
 	return isSuc;
+}
+
+bool correctRva(DWORD& checkRva, PVOID fileBuffer, PVOID oldBuffer, DWORD refPos, DWORD delta) {
+	DWORD foa = rva2foa(oldBuffer, checkRva);
+	if (foa >= refPos) {
+		foa += delta;
+		checkRva = foa2rva(fileBuffer, foa);
+		return true;
+	}
+	return false;
+}
+
+void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DWORD secFoa) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	//Dir-Import
+	PIMAGE_DATA_DIRECTORY pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+	bool isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
+	if (isFix) {
+		PIMAGE_IMPORT_DESCRIPTOR pData = (PIMAGE_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, pDir->VirtualAddress);
+		DWORD typeSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
+		while (!isZeroBlock(pData, typeSize)) {
+			correctRva(pData->Name, fileBuffer, oldBuffer, secFoa, secSize);
+			correctRva(pData->OriginalFirstThunk, fileBuffer, oldBuffer, secFoa, secSize);
+			correctRva(pData->FirstThunk, fileBuffer, oldBuffer, secFoa, secSize);
+			//PSTR dllName = (PSTR)rva2fa(fileBuffer, pData->Name);
+			//log("---%s", dllName);
+			PDWORD pOFT = (PDWORD)rva2fa(fileBuffer, pData->OriginalFirstThunk);
+			while (*pOFT != 0) {
+				if ((*pOFT & 0x80000000) != 0x80000000) {
+					correctRva(*pOFT, fileBuffer, oldBuffer, secFoa, secSize);
+					//PIMAGE_IMPORT_BY_NAME pName = (PIMAGE_IMPORT_BY_NAME)rva2fa(fileBuffer, *pOFT);
+					//log("\t%s", pName->Name);
+				}
+				pOFT++;
+			}
+			pData++;
+		}
+	}
+	//Dir-Res
+	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
+	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
+	if (isFix) {
+		PIMAGE_RESOURCE_DIRECTORY pData = (PIMAGE_RESOURCE_DIRECTORY)rva2fa(fileBuffer, pDir->VirtualAddress);
+
+	}
+
+	//Dir(dbg, export, reloc)
+}
+
+void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWORD secFoa, PVOID oldBuffer) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	hNt->FileHeader.NumberOfSections += 1;
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+
+	DWORD typeSize = sizeof(IMAGE_SECTION_HEADER);
+	DWORD offsetFa = (DWORD)fstSec + secIdx * typeSize;
+	memcpy((PVOID)(offsetFa + typeSize), (PVOID)offsetFa, (hNt->FileHeader.NumberOfSections - 1 - secIdx) * typeSize);
+	ZeroMemory((PVOID)offsetFa, typeSize);
+	//Section
+	DWORD sizeOfImg = 0;
+	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+		PIMAGE_SECTION_HEADER sec = fstSec + i;
+		if (i == secIdx) {
+			strncpy((CHAR*)sec->Name, secName, 7);
+			sec->Characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;
+			sec->SizeOfRawData = secSize;
+			sec->PointerToRawData = secFoa;
+			sec->Misc.VirtualSize = secSize;
+		}
+		if (i >= secIdx) {
+			DWORD va;
+			if (i == 0) {
+				va = align(hNt->OptionalHeader.SizeOfHeaders, hNt->OptionalHeader.SectionAlignment);
+			} else {
+				PIMAGE_SECTION_HEADER prevSec = fstSec + (i - 1);
+				va = prevSec->VirtualAddress + align(prevSec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
+				sec->PointerToRawData = prevSec->PointerToRawData + prevSec->SizeOfRawData;
+			}
+			sec->VirtualAddress = va;
+			log("%s %p %p %p %p", sec->Name, sec->Misc.VirtualSize, sec->VirtualAddress, sec->SizeOfRawData, sec->PointerToRawData);
+		}
+		if (i == hNt->FileHeader.NumberOfSections - 1) {
+			sizeOfImg = sec->VirtualAddress + align(sec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
+		}
+	}
+
+	//SizeOfImage
+	hNt->OptionalHeader.SizeOfImage = sizeOfImg;
+	//OEP
+	correctRva(hNt->OptionalHeader.AddressOfEntryPoint, fileBuffer, oldBuffer, secFoa, secSize);
+	//Dir
+	restoreDir(fileBuffer, oldBuffer, secIdx, secSize, secFoa);
 }
 
 //secIdx: [0, maxSecNum - 1], otherwise tail
@@ -546,23 +638,41 @@ DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT
 	}
 	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
 	DWORD newFileSize = oldFileSize + secSize;
-	log("%d 0x%p 0x%p 0x%p", secIdx, oldFileSize, newFileSize, secSize);
-
-	//*newBuffer = malloc_s(newFileSize);
+	log("%d/%d 0x%p [0x%p] 0x%p", secIdx, hNt->FileHeader.NumberOfSections, oldFileSize, newFileSize, secSize);
 
 	DWORD typeSize = sizeof(IMAGE_SECTION_HEADER);
 	DWORD beginFoa = (DWORD)lstSec + typeSize - (DWORD)fileBuffer;
 	DWORD endFoa = hNt->OptionalHeader.SizeOfHeaders;
 	PVOID beginFa = (PVOID)(beginFoa + (DWORD)fileBuffer);
-
 	bool isEmptyBehindSec = isZeroBlock(beginFa, endFoa - beginFoa);
 	if (!isEmptyBehindSec) {
-		if (!TryMoveBoundImportData(fileBuffer, beginFoa, endFoa - beginFoa)) {
+		if (!tryMoveBoundImportData(fileBuffer, beginFoa, endFoa - beginFoa)) {
 			log("no available header space for new section...");
 			return 0;
 		}
 		log("move bound finish!");
 	}
 
-	return secSize;
+	*newBuffer = malloc_s(newFileSize);
+	DWORD bufferBase = (DWORD)*newBuffer;
+	DWORD part1Size = 0;
+	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
+		if (i == secIdx) {
+			part1Size = (fstSec + i)->PointerToRawData;
+			break;
+		}
+	}
+	if (!part1Size) {
+		part1Size = oldFileSize;
+	}
+
+	//log("%p", part1Size);
+	memcpy((PVOID)bufferBase, fileBuffer, part1Size);
+	DWORD part2Size = oldFileSize - part1Size;
+	//log("%p %p", part1Size + secSize, part2Size);
+	memcpy((PVOID)(bufferBase + part1Size + secSize), (PVOID)((DWORD)fileBuffer + part1Size), part2Size);
+
+	restoreData((PVOID)bufferBase, secIdx, secName, secSize, part1Size, fileBuffer);
+
+	return newFileSize;
 }
