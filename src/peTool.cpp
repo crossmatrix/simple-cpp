@@ -546,7 +546,7 @@ bool correctRva(DWORD& checkRva, PVOID fileBuffer, PVOID oldBuffer, DWORD refPos
 
 void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DWORD secFoa) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
-	//Dir-Import
+	//Import
 	PIMAGE_DATA_DIRECTORY pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
 	bool isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
 	if (isFix) {
@@ -570,15 +570,30 @@ void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DW
 			pData++;
 		}
 	}
-	//Dir-Res
+	//Res
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
 	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
 	if (isFix) {
 		PIMAGE_RESOURCE_DIRECTORY pData = (PIMAGE_RESOURCE_DIRECTORY)rva2fa(fileBuffer, pDir->VirtualAddress);
-
 	}
-
-	//Dir(dbg, export, reloc)
+	//Dbg
+	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG];
+	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
+	if (isFix) {
+		PIMAGE_DEBUG_DIRECTORY pData = (PIMAGE_DEBUG_DIRECTORY)rva2fa(fileBuffer, pDir->VirtualAddress);
+		correctRva(pData->AddressOfRawData, fileBuffer, oldBuffer, secFoa, secSize);
+		if (pData->PointerToRawData >= secFoa) {
+			pData->PointerToRawData += secSize;
+		}
+		//todo
+	}
+	//IAT
+	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT];
+	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
+	//Config
+	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG];
+	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
+	//Dir(export, reloc)
 }
 
 void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWORD secFoa, PVOID oldBuffer) {
@@ -675,4 +690,68 @@ DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT
 	restoreData((PVOID)bufferBase, secIdx, secName, secSize, part1Size, fileBuffer);
 
 	return newFileSize;
+}
+
+void showData_2_Resource(PVOID fileBuffer) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress;
+	if (!dataRva) {
+		log("no resource info");
+		return;
+	}
+	//RT_XX, 17
+	const char* nameRefTb[] = {
+		0, "cursor", "bitMap", "icon", "menu", "dialog", "string",
+		"fontDir", "font", "acce", "rawData", "msgTable",
+		"cursorGroup", "undefine1", "iconGroup", "undefine2", "version"
+	};
+
+	log("----------resource table----------");
+	DWORD typeSize = sizeof(IMAGE_RESOURCE_DIRECTORY);
+	PIMAGE_RESOURCE_DIRECTORY pData = (PIMAGE_RESOURCE_DIRECTORY)rva2fa(fileBuffer, dataRva);
+	PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData + typeSize);
+	DWORD entryNum = pData->NumberOfIdEntries + pData->NumberOfNamedEntries;
+
+	for (int i = 0; i < entryNum; i++) {
+		if (pEntry[i].NameIsString) {
+			PIMAGE_RESOURCE_DIR_STRING_U pResStr = (PIMAGE_RESOURCE_DIR_STRING_U)((DWORD)pData + pEntry[i].NameOffset);
+			log("[%d]%s", pResStr->Length, pResStr->NameString);
+		} else {
+			WORD resId = pEntry[i].Id;
+			if (resId < 17) {
+				log("internal: %s(%d)", nameRefTb[resId], resId);
+			} else {
+				log("custom: %d", resId);
+			}
+		}
+
+		if (pEntry[i].DataIsDirectory) {
+			PIMAGE_RESOURCE_DIRECTORY pData2 = (PIMAGE_RESOURCE_DIRECTORY)((DWORD)pData + pEntry[i].OffsetToDirectory);
+			PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry2 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData2 + typeSize);
+			DWORD entryNum2 = pData2->NumberOfIdEntries + pData2->NumberOfNamedEntries;
+
+			for (int j = 0; j < entryNum2; j++) {
+				if (pEntry2[j].NameIsString) {
+					PIMAGE_RESOURCE_DIR_STRING_U pResStr = (PIMAGE_RESOURCE_DIR_STRING_U)((DWORD)pData + pEntry2[j].NameOffset);
+					log("\t[%d]%s", pResStr->Length, pResStr->NameString);
+				} else {
+					WORD resId = pEntry2[j].Id;
+					if (resId < 17) {
+						log("\tinternal: %s(%d)", nameRefTb[resId], resId);
+					} else {
+						log("\tcustom: %d", resId);
+					}
+				}
+
+				if (pEntry2[j].DataIsDirectory) {
+					PIMAGE_RESOURCE_DIRECTORY pData3 = (PIMAGE_RESOURCE_DIRECTORY)((DWORD)pData + pEntry2[j].OffsetToDirectory);
+					PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry3 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData3 + typeSize);
+					DWORD entryNum3 = pData3->NumberOfIdEntries + pData3->NumberOfNamedEntries;
+					log("\t\tthird: %d", entryNum3);
+				}
+			}
+		} else {
+			log("not dir");
+		}
+	}
 }

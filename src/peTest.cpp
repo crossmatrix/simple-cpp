@@ -363,6 +363,17 @@ namespace peTest {
 		free(path);
 		free(fileBuffer);
 	}
+
+	void test14() {
+		char* path = res("notepad.exe");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showData_2_Resource(fileBuffer);
+
+		free(path);
+		free(fileBuffer);
+	}
 }
 
 using namespace peTest;

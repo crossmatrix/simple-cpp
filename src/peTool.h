@@ -29,5 +29,6 @@ DWORD getFuncByName(PVOID fileBuffer, PCSTR name);
 void showData_5_Reloc(PVOID fileBuffer);
 void showData_1_11_Import_Bound(PVOID fileBuffer);
 DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer);
+void showData_2_Resource(PVOID fileBuffer);
 
 #endif
