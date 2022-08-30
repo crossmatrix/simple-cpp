@@ -298,7 +298,8 @@ namespace peTest {
 	}
 
 	void test10() {
-		char* path = res("notepad.exe");
+		char* path = res("myDll2.dll");
+		//char* path = res("notepad.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
@@ -350,7 +351,7 @@ namespace peTest {
 		PVOID newBuffer = 0;
 		int secIdx = 0; //012,tail
 		DWORD newFileSize = addSection(fileBuffer, secIdx, ".test", 800, &newBuffer);
-		savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
+		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
 
 		if (newBuffer) {
 			char* savePath = res("notepad_test.exe");
