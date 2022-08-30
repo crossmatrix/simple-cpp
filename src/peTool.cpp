@@ -651,7 +651,7 @@ void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DW
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG];
 	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
 	//PIMAGE_LOAD_CONFIG_DIRECTORY
-	//Dir(export, reloc)
+	//todo: Dir(export, reloc)
 }
 
 void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWORD secFoa, PVOID oldBuffer) {
