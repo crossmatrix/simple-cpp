@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <winnt.h>
 
-#define log(str,...) printf(str##"\n",__VA_ARGS__)
+#define print(str,...) printf(str##"\n",__VA_ARGS__)
 #define NT_HEADER(buffer) ((PIMAGE_NT_HEADERS)((DWORD)buffer + ((PIMAGE_DOS_HEADER)buffer)->e_lfanew))
 
 void* malloc_s(int size);

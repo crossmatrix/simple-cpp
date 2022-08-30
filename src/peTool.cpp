@@ -1,4 +1,5 @@
 #include "peTool.h"
+#include <functional>
 
 void* malloc_s(int size) {
 	void* mem = malloc(size);
@@ -6,7 +7,7 @@ void* malloc_s(int size) {
 		ZeroMemory(mem, size);
 		return mem;
 	} else {
-		log("malloc error: %d", size);
+		print("malloc error: %d", size);
 		return NULL;
 	}
 }
@@ -32,7 +33,7 @@ void copyBin(PCSTR src, PCSTR dest) {
 			fread(buf, 1, len, fp);
 			fwrite(buf, 1, len, wp);
 			free(buf);
-			log("copy suc!");
+			print("copy suc!");
 		}
 	}
 	fclose(wp);
@@ -42,7 +43,7 @@ void copyBin(PCSTR src, PCSTR dest) {
 long openPE(IN PCSTR path, OUT PVOID* file) {
 	FILE* fp = fopen(path, "rb");
 	if (fp == NULL) {
-		log("file not exist: %s", path);
+		print("file not exist: %s", path);
 		return 0;
 	}
 
@@ -66,7 +67,7 @@ long openPE(IN PCSTR path, OUT PVOID* file) {
 void savePE(PVOID buffer, DWORD size, PCSTR path) {
 	FILE* fp = fopen(path, "wb");
 	if (!fp) {
-		log("open file error: %s", path);
+		print("open file error: %s", path);
 		return;
 	}
 	fwrite(buffer, 1, size, fp);
@@ -78,54 +79,54 @@ void showPE(PCSTR path) {
 	long len = openPE(path, &fileBuffer);
 	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 	if (hDos->e_magic != IMAGE_DOS_SIGNATURE) {
-		log("not mz");
+		print("not mz");
 		free(fileBuffer);
 		return;
 	}
-	log("----------pe overview(fileSize: 0x%p)----------", len);
-	log(".....DOS_HEADER key info.....");
-	log("ntOffset\t 0x%04X", hDos->e_lfanew);
+	print("----------pe overview(fileSize: 0x%p)----------", len);
+	print(".....DOS_HEADER key info.....");
+	print("ntOffset\t 0x%04X", hDos->e_lfanew);
 
 	PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)((DWORD)fileBuffer + hDos->e_lfanew);
 	if (hNt->Signature != IMAGE_NT_SIGNATURE) {
-		log("not pe");
+		print("not pe");
 		free(fileBuffer);
 		return;
 	}
 	PIMAGE_FILE_HEADER hStd = &hNt->FileHeader;
 	PIMAGE_OPTIONAL_HEADER hOp = &hNt->OptionalHeader;
-	log(".....FILE_HEADER key info.....");
-	log("machine\t\t 0x%04X", hStd->Machine);
-	log("secNum\t\t 0x%04X", hStd->NumberOfSections);
-	log("opSize\t\t 0x%04X", hStd->SizeOfOptionalHeader);
-	log("char\t\t 0x%04X", hStd->Characteristics);
-	log(".....OPTIONAL_HEADER key info.....");
-	log("magic\t\t 0x%04X", hOp->Magic);
-	log("oep\t\t 0x%p", hOp->AddressOfEntryPoint);
-	log("imgBase\t\t 0x%p", hOp->ImageBase);
-	log("secAlign\t 0x%p", hOp->SectionAlignment);
-	log("fileAlign\t 0x%p", hOp->FileAlignment);
-	log("sizeImg\t\t 0x%p", hOp->SizeOfImage);
-	log("sizeHeader\t 0x%p", hOp->SizeOfHeaders);
-	log("checkSum\t 0x%p", hOp->CheckSum);
-	log("subSys\t\t 0x%04X", hOp->Subsystem);
-	log("dllChar\t\t 0x%04X", hOp->DllCharacteristics);
+	print(".....FILE_HEADER key info.....");
+	print("machine\t\t 0x%04X", hStd->Machine);
+	print("secNum\t\t 0x%04X", hStd->NumberOfSections);
+	print("opSize\t\t 0x%04X", hStd->SizeOfOptionalHeader);
+	print("char\t\t 0x%04X", hStd->Characteristics);
+	print(".....OPTIONAL_HEADER key info.....");
+	print("magic\t\t 0x%04X", hOp->Magic);
+	print("oep\t\t 0x%p", hOp->AddressOfEntryPoint);
+	print("imgBase\t\t 0x%p", hOp->ImageBase);
+	print("secAlign\t 0x%p", hOp->SectionAlignment);
+	print("fileAlign\t 0x%p", hOp->FileAlignment);
+	print("sizeImg\t\t 0x%p", hOp->SizeOfImage);
+	print("sizeHeader\t 0x%p", hOp->SizeOfHeaders);
+	print("checkSum\t 0x%p", hOp->CheckSum);
+	print("subSys\t\t 0x%04X", hOp->Subsystem);
+	print("dllChar\t\t 0x%04X", hOp->DllCharacteristics);
 	PIMAGE_DATA_DIRECTORY dataDir = hOp->DataDirectory;
 	for (int i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++) {
-		log("dataDir_%d\t va: 0x%p sz: 0x%p", i, dataDir[i].VirtualAddress, dataDir[i].Size);
+		print("dataDir_%d\t va: 0x%p sz: 0x%p", i, dataDir[i].VirtualAddress, dataDir[i].Size);
 	}
 
-	log(".....SECTION_HEADER key info.....");
+	print(".....SECTION_HEADER key info.....");
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	for (int i = 0; i < hStd->NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
-		log("section_%d:", i);
-		log("    name\t %s", sec->Name);
-		log("    vs\t\t 0x%p", sec->Misc.VirtualSize);
-		log("    va\t\t 0x%p", sec->VirtualAddress);
-		log("    fs\t\t 0x%p", sec->SizeOfRawData);
-		log("    fa\t\t 0x%p", sec->PointerToRawData);
-		log("    char\t 0x%p", sec->Characteristics);
+		print("section_%d:", i);
+		print("    name\t %s", sec->Name);
+		print("    vs\t\t 0x%p", sec->Misc.VirtualSize);
+		print("    va\t\t 0x%p", sec->VirtualAddress);
+		print("    fs\t\t 0x%p", sec->SizeOfRawData);
+		print("    fa\t\t 0x%p", sec->PointerToRawData);
+		print("    char\t 0x%p", sec->Characteristics);
 	}
 
 	free(fileBuffer);
@@ -193,7 +194,7 @@ DWORD foa2rva(PVOID fileBuffer, DWORD foa) {
 			}
 		}
 	}
-	log("not find foa: %p", foa);
+	print("not find foa: %p", foa);
 	return 0;
 }
 
@@ -206,7 +207,7 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 			if (rva < fstSec->PointerToRawData) {
 				return rva;
 			} else {
-				log("rva -> foa fail, in header: %p, img: [0, %p), file: [0, %p)", rva, fstSec->VirtualAddress, fstSec->PointerToRawData);
+				print("rva -> foa fail, in header: %p, img: [0, %p), file: [0, %p)", rva, fstSec->VirtualAddress, fstSec->PointerToRawData);
 				return 0;
 			}
 		} else {
@@ -217,14 +218,14 @@ DWORD rva2foa(PVOID fileBuffer, DWORD rva) {
 					if (rva - sec->VirtualAddress < sec->SizeOfRawData) {
 						return rva - sec->VirtualAddress + sec->PointerToRawData;
 					} else {
-						log("rva -> foa fail, in sec%d: %p, img: [%p, %p), file: [%p, %p)", i + 1, rva, sec->VirtualAddress, nextVA, sec->PointerToRawData, sec->PointerToRawData + sec->SizeOfRawData);
+						print("rva -> foa fail, in sec%d: %p, img: [%p, %p), file: [%p, %p)", i + 1, rva, sec->VirtualAddress, nextVA, sec->PointerToRawData, sec->PointerToRawData + sec->SizeOfRawData);
 						return 0;
 					}
 				}
 			}
 		}
 	}
-	log("not find rva: %p", rva);
+	print("not find rva: %p", rva);
 	return 0;
 }
 
@@ -248,7 +249,7 @@ PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva) {
 			return sec;
 		}
 	}
-	log("not find section: %p", rva);
+	print("not find section: %p", rva);
 	return NULL;
 }
 
@@ -264,7 +265,7 @@ PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa) {
 			return sec;
 		}
 	}
-	log("not find section: %p", foa);
+	print("not find section: %p", foa);
 	return NULL;
 }
 
@@ -300,12 +301,12 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 			start = sec->PointerToRawData;
 			end = sec->PointerToRawData + sec->SizeOfRawData - 1;
 		} else {
-			log("secIdx = %d not in [0, %d)", secIdx, hNt->FileHeader.NumberOfSections);
+			print("secIdx = %d not in [0, %d)", secIdx, hNt->FileHeader.NumberOfSections);
 			return false;
 		}
 	}
 	if (chunkSize <= 0) {
-		log("size must > 0");
+		print("size must > 0");
 		return false;
 	}
 
@@ -336,7 +337,7 @@ bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT 
 	}
 	delete[] chunk;
 	if (!isFind) {
-		log("no avaliable space");
+		print("no avaliable space");
 	}
 	return isFind;
 }
@@ -353,20 +354,20 @@ void showData_0_Export(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress;
 	if (!dataRva) {
-		log("no export info");
+		print("no export info");
 		return;
 	}
 	PIMAGE_EXPORT_DIRECTORY pData = (PIMAGE_EXPORT_DIRECTORY)rva2fa(fileBuffer, dataRva);
-	log("----------export table----------");
+	print("----------export table----------");
 
 	PSTR name = (PSTR)rva2fa(fileBuffer, pData->Name);
-	log("name: %s", name);
-	log("baseOrdinal: %d, funcNum: %d, nameNum: %d", pData->Base, pData->NumberOfFunctions, pData->NumberOfNames);
+	print("name: %s", name);
+	print("baseOrdinal: %d, funcNum: %d, nameNum: %d", pData->Base, pData->NumberOfFunctions, pData->NumberOfNames);
 	PDWORD funcAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfFunctions);
 	PDWORD nameAddr = (PDWORD)rva2fa(fileBuffer, pData->AddressOfNames);
 	PWORD nameOrdAddr = (PWORD)rva2fa(fileBuffer, pData->AddressOfNameOrdinals);
 
-	log("exportOrdinal \trealIndex \tfuncAddr(rva) \tname");
+	print("exportOrdinal \trealIndex \tfuncAddr(rva) \tname");
 	for (int i = 0; i < pData->NumberOfFunctions; i++) {
 		if (funcAddr[i]) {
 			DWORD nameRva = 0;
@@ -376,7 +377,7 @@ void showData_0_Export(PVOID fileBuffer) {
 					break;
 				}
 			}
-			log("%d \t\t%d \t\t%p \t%s", i + pData->Base, i, funcAddr[i], nameRva ? (PSTR)rva2fa(fileBuffer, nameRva) : "noName");
+			print("%d \t\t%d \t\t%p \t%s", i + pData->Base, i, funcAddr[i], nameRva ? (PSTR)rva2fa(fileBuffer, nameRva) : "noName");
 		}
 	}
 }
@@ -432,17 +433,17 @@ void showData_5_Reloc(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
 	if (!dataRva) {
-		log("no reloc info");
+		print("no reloc info");
 		return;
 	}
 	PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
-	log("----------reloc table----------");
+	print("----------reloc table----------");
 
 	DWORD typeSize = sizeof(IMAGE_BASE_RELOCATION);
 	while (!isZeroBlock((PVOID)pData, typeSize)) {
 		DWORD itemNum = (pData->SizeOfBlock - typeSize) / 2;
 		PIMAGE_SECTION_HEADER pSec = getSecByRva(fileBuffer, pData->VirtualAddress);
-		log("belong sec: %s, baseVa: %p, blockSize: %p, itemNum: %d", pSec->Name, pData->VirtualAddress, pData->SizeOfBlock, itemNum);
+		print("belong sec: %s, baseVa: %p, blockSize: %p, itemNum: %d", pSec->Name, pData->VirtualAddress, pData->SizeOfBlock, itemNum);
 
 		PWORD fstItem = PWORD((DWORD)pData + typeSize);
 		for (int i = 0; i < itemNum; i++) {
@@ -451,7 +452,7 @@ void showData_5_Reloc(PVOID fileBuffer) {
 			WORD value = item << 4;
 			value = value >> 4;
 			DWORD rva = pData->VirtualAddress + value;
-			log("\t[%d] org item: %04x, item value: %04x, rva: %p", i, item, value, rva);
+			print("\t[%d] org item: %04x, item value: %04x, rva: %p", i, item, value, rva);
 		}
 		pData = (PIMAGE_BASE_RELOCATION)((DWORD)pData + pData->SizeOfBlock);
 	}
@@ -461,10 +462,10 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
 	if (!dataRva) {
-		log("no import info");
+		print("no import info");
 	} else {
 		PIMAGE_IMPORT_DESCRIPTOR pData = (PIMAGE_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
-		log("----------import table----------");
+		print("----------import table----------");
 
 		DWORD typeSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
 		while (!isZeroBlock(pData, typeSize)) {
@@ -476,31 +477,31 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 			while (*pOFT != 0) {
 				if ((*pOFT & 0x80000000) == 0x80000000) {
 					DWORD funcOrdinal = *pOFT & 0x7fffffff;
-					log("oft: %p, ft: %p, <ordinal>\t %d", *pOFT, *pFT, funcOrdinal);
+					print("oft: %p, ft: %p, <ordinal>\t %d", *pOFT, *pFT, funcOrdinal);
 				} else {
 					PIMAGE_IMPORT_BY_NAME pName = (PIMAGE_IMPORT_BY_NAME)rva2fa(fileBuffer, *pOFT);
-					log("oft: %p, ft: %p, <name>\t %s", *pOFT, *pFT, pName->Name);
+					print("oft: %p, ft: %p, <name>\t %s", *pOFT, *pFT, pName->Name);
 				}
 				pOFT++;
 				pFT++;
 				funcNum++;
 			}
-			log("%s[%d], OFT/INT(rva): %p, FT/IAT(rva): %p, time: %d\n", dllName, funcNum, pData->OriginalFirstThunk, pData->FirstThunk, pData->TimeDateStamp);
+			print("%s[%d], OFT/INT(rva): %p, FT/IAT(rva): %p, time: %d\n", dllName, funcNum, pData->OriginalFirstThunk, pData->FirstThunk, pData->TimeDateStamp);
 			pData++;
 		}
 	}
 
 	dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress;
 	if (!dataRva) {
-		log("no bound import info");
+		print("no bound import info");
 	} else {
 		PIMAGE_BOUND_IMPORT_DESCRIPTOR pData = (PIMAGE_BOUND_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
-		log("----------bound import table----------");
+		print("----------bound import table----------");
 		DWORD fstBound = (DWORD)pData;
 		DWORD typeSize = sizeof(IMAGE_BOUND_IMPORT_DESCRIPTOR);
 		while (!isZeroBlock(pData, typeSize)) {
 			PSTR name = (PSTR)(fstBound + pData->OffsetModuleName);
-			log("%s(%p) %p", name, (DWORD)name - (DWORD)fileBuffer, pData->TimeDateStamp);
+			print("%s(%p) %p", name, (DWORD)name - (DWORD)fileBuffer, pData->TimeDateStamp);
 			pData++;
 		}
 	}
@@ -544,6 +545,59 @@ bool correctRva(DWORD& checkRva, PVOID fileBuffer, PVOID oldBuffer, DWORD refPos
 	return false;
 }
 
+void resourceInfo(PVOID fileBuffer, DWORD dataRva, 
+	void(*nameFunc)(PIMAGE_RESOURCE_DIRECTORY, PIMAGE_RESOURCE_DIRECTORY_ENTRY, int, int), 
+	std::function<void(PIMAGE_RESOURCE_DATA_ENTRY, int, PVOID)> dataFunc
+) {
+	DWORD typeSize = sizeof(IMAGE_RESOURCE_DIRECTORY);
+	PIMAGE_RESOURCE_DIRECTORY pData1 = (PIMAGE_RESOURCE_DIRECTORY)rva2fa(fileBuffer, dataRva);
+	PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry1 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData1 + typeSize);
+	DWORD entryNum = pData1->NumberOfIdEntries + pData1->NumberOfNamedEntries;
+
+	for (int i = 0; i < entryNum; i++) {
+		if (nameFunc) {
+			nameFunc(pData1, pEntry1, 0, i);
+		}
+
+		if (pEntry1[i].DataIsDirectory) {
+			PIMAGE_RESOURCE_DIRECTORY pData2 = (PIMAGE_RESOURCE_DIRECTORY)((DWORD)pData1 + pEntry1[i].OffsetToDirectory);
+			PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry2 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData2 + typeSize);
+			DWORD entryNum2 = pData2->NumberOfIdEntries + pData2->NumberOfNamedEntries;
+
+			for (int j = 0; j < entryNum2; j++) {
+				if (nameFunc) {
+					nameFunc(pData1, pEntry2, 1, j);
+				}
+
+				if (pEntry2[j].DataIsDirectory) {
+					PIMAGE_RESOURCE_DIRECTORY pData3 = (PIMAGE_RESOURCE_DIRECTORY)((DWORD)pData1 + pEntry2[j].OffsetToDirectory);
+					PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry3 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData3 + typeSize);
+					DWORD entryNum3 = pData3->NumberOfIdEntries + pData3->NumberOfNamedEntries;
+
+					for (int k = 0; k < entryNum3; k++) {
+						if (nameFunc) {
+							nameFunc(pData1, pEntry3, 2, k);
+						}
+
+						if (pEntry3[k].DataIsDirectory) {
+							print("\t\tis dir!");
+						} else {
+							PIMAGE_RESOURCE_DATA_ENTRY pResData = (PIMAGE_RESOURCE_DATA_ENTRY)((DWORD)pData1 + pEntry3[k].OffsetToDirectory);
+							if (dataFunc) {
+								dataFunc(pResData, 3, fileBuffer);
+							}
+						}
+					}
+				} else {
+					print("\tnot dir!");
+				}
+			}
+		} else {
+			print("not dir!");
+		}
+	}
+}
+
 void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DWORD secFoa) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	//Import
@@ -574,7 +628,10 @@ void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DW
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
 	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
 	if (isFix) {
-		PIMAGE_RESOURCE_DIRECTORY pData = (PIMAGE_RESOURCE_DIRECTORY)rva2fa(fileBuffer, pDir->VirtualAddress);
+		auto f = [&](PIMAGE_RESOURCE_DATA_ENTRY pResData, int dummy1, PVOID dummy2) {
+			correctRva(pResData->OffsetToData, fileBuffer, oldBuffer, secFoa, secSize);
+		};
+		resourceInfo(fileBuffer, pDir->VirtualAddress, NULL, f);
 	}
 	//Dbg
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG];
@@ -585,7 +642,6 @@ void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DW
 		if (pData->PointerToRawData >= secFoa) {
 			pData->PointerToRawData += secSize;
 		}
-		//todo
 	}
 	//IAT
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT];
@@ -593,6 +649,7 @@ void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DW
 	//Config
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG];
 	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
+	//PIMAGE_LOAD_CONFIG_DIRECTORY
 	//Dir(export, reloc)
 }
 
@@ -600,12 +657,12 @@ void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWO
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	hNt->FileHeader.NumberOfSections += 1;
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
-
+	//clear new section header
 	DWORD typeSize = sizeof(IMAGE_SECTION_HEADER);
-	DWORD offsetFa = (DWORD)fstSec + secIdx * typeSize;
+	DWORD offsetFa = (DWORD)(fstSec + secIdx);
 	memcpy((PVOID)(offsetFa + typeSize), (PVOID)offsetFa, (hNt->FileHeader.NumberOfSections - 1 - secIdx) * typeSize);
 	ZeroMemory((PVOID)offsetFa, typeSize);
-	//Section
+	//set section header
 	DWORD sizeOfImg = 0;
 	for (int i = 0; i < hNt->FileHeader.NumberOfSections; i++) {
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
@@ -626,7 +683,7 @@ void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWO
 				sec->PointerToRawData = prevSec->PointerToRawData + prevSec->SizeOfRawData;
 			}
 			sec->VirtualAddress = va;
-			log("%s %p %p %p %p", sec->Name, sec->Misc.VirtualSize, sec->VirtualAddress, sec->SizeOfRawData, sec->PointerToRawData);
+			print("%s %p %p %p %p", sec->Name, sec->Misc.VirtualSize, sec->VirtualAddress, sec->SizeOfRawData, sec->PointerToRawData);
 		}
 		if (i == hNt->FileHeader.NumberOfSections - 1) {
 			sizeOfImg = sec->VirtualAddress + align(sec->Misc.VirtualSize, hNt->OptionalHeader.SectionAlignment);
@@ -653,19 +710,18 @@ DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT
 	}
 	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
 	DWORD newFileSize = oldFileSize + secSize;
-	log("%d/%d 0x%p [0x%p] 0x%p", secIdx, hNt->FileHeader.NumberOfSections, oldFileSize, newFileSize, secSize);
+	print("%d/%d 0x%p [0x%p] 0x%p", secIdx, hNt->FileHeader.NumberOfSections, oldFileSize, newFileSize, secSize);
 
-	DWORD typeSize = sizeof(IMAGE_SECTION_HEADER);
-	DWORD beginFoa = (DWORD)lstSec + typeSize - (DWORD)fileBuffer;
+	DWORD beginFoa = (DWORD)lstSec + sizeof(IMAGE_SECTION_HEADER) - (DWORD)fileBuffer;
 	DWORD endFoa = hNt->OptionalHeader.SizeOfHeaders;
 	PVOID beginFa = (PVOID)(beginFoa + (DWORD)fileBuffer);
 	bool isEmptyBehindSec = isZeroBlock(beginFa, endFoa - beginFoa);
 	if (!isEmptyBehindSec) {
 		if (!tryMoveBoundImportData(fileBuffer, beginFoa, endFoa - beginFoa)) {
-			log("no available header space for new section...");
+			print("no available header space for new section...");
 			return 0;
 		}
-		log("move bound finish!");
+		print("move bound finish!");
 	}
 
 	*newBuffer = malloc_s(newFileSize);
@@ -699,30 +755,30 @@ const char* internalResName[] = {
 	"cursorGroup", "undefine1", "iconGroup", "undefine2", "version"
 };
 
-void checkRes_Name(PIMAGE_RESOURCE_DIRECTORY pData, PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry, int layer, int i) {
+void checkRes_Name(PIMAGE_RESOURCE_DIRECTORY pData, PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry, int layer, int idx) {
 	char* blank = (char*)malloc_s(layer + 1);
-	for (int i = 0; i < layer; i++) {
-		blank[i] = '\t';
+	for (int j = 0; j < layer; j++) {
+		blank[j] = '\t';
 	}
 
-	if (pEntry[i].NameIsString) {
-		PIMAGE_RESOURCE_DIR_STRING_U pResStr = (PIMAGE_RESOURCE_DIR_STRING_U)((DWORD)pData + pEntry[i].NameOffset);
+	if (pEntry[idx].NameIsString) {
+		PIMAGE_RESOURCE_DIR_STRING_U pResStr = (PIMAGE_RESOURCE_DIR_STRING_U)((DWORD)pData + pEntry[idx].NameOffset);
 		WCHAR name[MAX_PATH] = {0};
 		memcpy(name, pResStr->NameString, pResStr->Length * sizeof(WCHAR));
-		log("%s[str] %S(%d)", blank, name, pResStr->Length);
+		print("%s[str] %S(%d)", blank, name, pResStr->Length);
 	} else {
-		WORD resId = pEntry[i].Id;
+		WORD resId = pEntry[idx].Id;
 		if (resId < 17) {
 			if (layer == 0) {
-				log("%s[itnId] %d(%s)", blank, resId, internalResName[resId]);
+				print("%s[itnId] %d(%s)", blank, resId, internalResName[resId]);
 			} else {
-				log("%s%d", blank, resId);
+				print("%s%d", blank, resId);
 			}
 		} else {
 			if (layer == 0) {
-				log("%s[cstId] %d", blank, resId);
+				print("%s[cstId] %d", blank, resId);
 			} else {
-				log("%s%d", blank, resId);
+				print("%s%d", blank, resId);
 			}
 		}
 	}
@@ -730,14 +786,14 @@ void checkRes_Name(PIMAGE_RESOURCE_DIRECTORY pData, PIMAGE_RESOURCE_DIRECTORY_EN
 	free(blank);
 }
 
-void checkRes_Data(PIMAGE_RESOURCE_DATA_ENTRY pResData, int layer, int i, PVOID fileBuffer) {
+void checkRes_Data(PIMAGE_RESOURCE_DATA_ENTRY pResData, int layer, PVOID fileBuffer) {
 	char* blank = (char*)malloc_s(layer + 1);
-	for (int i = 0; i < layer; i++) {
-		blank[i] = '\t';
+	for (int j = 0; j < layer; j++) {
+		blank[j] = '\t';
 	}
 
 	DWORD foa = rva2foa(fileBuffer, pResData->OffsetToData);
-	log("%s%p(rva)-%p(foa) size: %p codePage: %p", blank, pResData->OffsetToData, foa, pResData->Size, pResData->CodePage);
+	print("%s%p(rva)-%p(foa) size: %p codePage: %p", blank, pResData->OffsetToData, foa, pResData->Size, pResData->CodePage);
 
 	free(blank);
 }
@@ -746,49 +802,10 @@ void showData_2_Resource(PVOID fileBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress;
 	if (!dataRva) {
-		log("no resource info");
+		print("no resource info");
 		return;
 	}
 
-	log("----------resource table----------");
-	DWORD typeSize = sizeof(IMAGE_RESOURCE_DIRECTORY);
-	PIMAGE_RESOURCE_DIRECTORY pData1 = (PIMAGE_RESOURCE_DIRECTORY)rva2fa(fileBuffer, dataRva);
-	PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry1 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData1 + typeSize);
-	DWORD entryNum = pData1->NumberOfIdEntries + pData1->NumberOfNamedEntries;
-
-	for (int i = 0; i < entryNum; i++) {
-		checkRes_Name(pData1, pEntry1, 0, i);
-
-		if (pEntry1[i].DataIsDirectory) {
-			PIMAGE_RESOURCE_DIRECTORY pData2 = (PIMAGE_RESOURCE_DIRECTORY)((DWORD)pData1 + pEntry1[i].OffsetToDirectory);
-			PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry2 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData2 + typeSize);
-			DWORD entryNum2 = pData2->NumberOfIdEntries + pData2->NumberOfNamedEntries;
-
-			for (int j = 0; j < entryNum2; j++) {
-				checkRes_Name(pData1, pEntry2, 1, j);
-
-				if (pEntry2[j].DataIsDirectory) {
-					PIMAGE_RESOURCE_DIRECTORY pData3 = (PIMAGE_RESOURCE_DIRECTORY)((DWORD)pData1 + pEntry2[j].OffsetToDirectory);
-					PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry3 = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)((DWORD)pData3 + typeSize);
-					DWORD entryNum3 = pData3->NumberOfIdEntries + pData3->NumberOfNamedEntries;
-					//log("\t\tthird: %d", entryNum3);
-
-					for (int k = 0; k < entryNum3; k++) {
-						checkRes_Name(pData1, pEntry3, 2, k);
-
-						if (pEntry3[k].DataIsDirectory) {
-							log("\t\tis dir!");
-						} else {
-							PIMAGE_RESOURCE_DATA_ENTRY pResData = (PIMAGE_RESOURCE_DATA_ENTRY)((DWORD)pData1 + pEntry3[k].OffsetToDirectory);
-							checkRes_Data(pResData, 3, k, fileBuffer);
-						}
-					}
-				} else {
-					log("\tnot dir!");
-				}
-			}
-		} else {
-			log("not dir!");
-		}
-	}
+	print("----------resource table----------");
+	resourceInfo(fileBuffer, dataRva, checkRes_Name, checkRes_Data);
 }

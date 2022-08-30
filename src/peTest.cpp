@@ -17,14 +17,14 @@ namespace peTest {
 		copyBin(s1, s2);
 		free(s1);
 		free(s2);
-		log("finish");
+		print("finish");
 	}
 
 	void test2() {
 		char* s1 = res("notepad.exe");
 		showPE(s1);
 		free(s1);
-		log("finish");
+		print("finish");
 	}
 
 	void test3() {
@@ -34,11 +34,11 @@ namespace peTest {
 
 		PVOID imgBuffer = 0;
 		peFile2Img(fileBuffer, &imgBuffer);
-		log("file > image");
+		print("file > image");
 
 		PVOID newBuffer = 0;
 		DWORD size = peImg2File(imgBuffer, &newBuffer);
-		log("image > file");
+		print("image > file");
 
 		char* s2 = res("2_notepad_stretchBack.exe");
 		savePE(newBuffer, size, s2);
@@ -46,14 +46,14 @@ namespace peTest {
 		free(s1);
 		free(fileBuffer);
 		if (imgBuffer) {
-			log("free img");
+			print("free img");
 			free(imgBuffer);
 		}
 		if (newBuffer) {
-			log("free newBuf");
+			print("free newBuf");
 			free(newBuffer);
 		}
-		log("finish");
+		print("finish");
 	}
 
 	void test4() {
@@ -70,48 +70,48 @@ namespace peTest {
 
 		DWORD rva1 = foa2rva(fileBuffer, 0);
 		DWORD rva2 = foa2rva(fileBuffer, 0x3FF);
-		log("%p %p", rva1, rva2);
+		print("%p %p", rva1, rva2);
 		DWORD foa1 = rva2foa(fileBuffer, rva1);
 		DWORD foa2 = rva2foa(fileBuffer, rva2);
-		log("%p %p\n", foa1, foa2);
+		print("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, 0x400);
 		rva2 = foa2rva(fileBuffer, 0x7BFF);
-		log("%p %p", rva1, rva2);
+		print("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%p %p\n", foa1, foa2);
+		print("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, 0x7C00);
 		rva2 = foa2rva(fileBuffer, 0x83FF);
-		log("%p %p", rva1, rva2);
+		print("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%p %p\n", foa1, foa2);
+		print("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, 0x8400);
 		rva2 = foa2rva(fileBuffer, 0x103FF);
-		log("%p %p", rva1, rva2);
+		print("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%p %p\n", foa1, foa2);
+		print("%p %p\n", foa1, foa2);
 
 		rva1 = foa2rva(fileBuffer, -1);
 		rva2 = foa2rva(fileBuffer, 0x10400);
-		log("%p %p", rva1, rva2);
+		print("%p %p", rva1, rva2);
 		foa1 = rva2foa(fileBuffer, rva1);
 		foa2 = rva2foa(fileBuffer, rva2);
-		log("%p %p\n", foa1, foa2);
+		print("%p %p\n", foa1, foa2);
 
-		log("%p", rva2foa(fileBuffer, 0x0fff));
-		log("%p", rva2foa(fileBuffer, 0x1000));
-		log("%p", rva2foa(fileBuffer, 0x1001));
-		log("%p", rva2foa(fileBuffer, 0x8800 - 1));
-		log("%p", rva2foa(fileBuffer, 0x8fff));
-		log("%p", rva2foa(fileBuffer, 0x8fff + 1));
-		log("%p", rva2foa(fileBuffer, 0xb000));
-		log("%p", rva2foa(fileBuffer, 0xb000 + 0x10400 - 0x8400 - 1));
-		log("%p", rva2foa(fileBuffer, 0x13000));
+		print("%p", rva2foa(fileBuffer, 0x0fff));
+		print("%p", rva2foa(fileBuffer, 0x1000));
+		print("%p", rva2foa(fileBuffer, 0x1001));
+		print("%p", rva2foa(fileBuffer, 0x8800 - 1));
+		print("%p", rva2foa(fileBuffer, 0x8fff));
+		print("%p", rva2foa(fileBuffer, 0x8fff + 1));
+		print("%p", rva2foa(fileBuffer, 0xb000));
+		print("%p", rva2foa(fileBuffer, 0xb000 + 0x10400 - 0x8400 - 1));
+		print("%p", rva2foa(fileBuffer, 0x13000));
 
 		free(path);
 		free(fileBuffer);
@@ -119,7 +119,7 @@ namespace peTest {
 
 	void logSec(PIMAGE_SECTION_HEADER sec, int id) {
 		if (sec != NULL) {
-			log("[%d] %s %p %p", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
+			print("[%d] %s %p %p", id, sec->Name, sec->PointerToRawData, sec->VirtualAddress);
 		}
 	}
 
@@ -217,7 +217,7 @@ namespace peTest {
 
 			char* outPath = res("3_injcode.exe");
 			savePE(fileBuffer, fileSize, outPath);
-			log("save finish: %s", outPath);
+			print("save finish: %s", outPath);
 			free(outPath);
 		}
 
@@ -231,18 +231,18 @@ namespace peTest {
 	void test8() {
 		int v1 = add(30, 10);
 		int v2 = sub(30, 10);
-		log("%d %d", v1, v2);
-		log("%p %p", add, sub);
+		print("%d %d", v1, v2);
+		print("%p %p", add, sub);
 
 		HMODULE mod = LoadLibrary("myDll.dll");
 		if (mod) {
 			FARPROC fp1 = GetProcAddress(mod, "add");
 			FARPROC fp2 = GetProcAddress(mod, "sub");
-			log("%p %p", fp1, fp2);
+			print("%p %p", fp1, fp2);
 
 			int(*func1)(int, int) = (int(*) (int, int))fp1;
 			int(*func2)(int, int) = (int(*) (int, int))fp2;
-			log("%d %d", func1(30, 10), func2(30, 10));
+			print("%d %d", func1(30, 10), func2(30, 10));
 		}
 	}
 
@@ -254,42 +254,42 @@ namespace peTest {
 		showPE(path);
 		showData_0_Export(fileBuffer);
 
-		log("---------");
+		print("---------");
 		HMODULE mod = LoadLibrary("myDll2.dll");
 		if (mod) {
 			FARPROC fp1 = GetProcAddress(mod, "makeRight");
 			FARPROC fp2 = GetProcAddress(mod, "makeLeft");
 			FARPROC fp3 = GetProcAddress(mod, "makeMul");
 			FARPROC fp4 = GetProcAddress(mod, PSTR(18));
-			log("%p %p %p %p", fp1, fp2, fp3, fp4);
+			print("%p %p %p %p", fp1, fp2, fp3, fp4);
 			int rs1 = ((int(*)(int, int))fp1)(100, 2);
 			int rs2 = ((int(*)(int, int))fp2)(100, 2);
 			int rs3 = ((int(*)(int, int))fp3)(30, 2);
 			int rs4 = ((int(*)(int, int))fp4)(30, 2);
-			log("%d %d %d %d", rs1, rs2, rs3, rs4);
+			print("%d %d %d %d", rs1, rs2, rs3, rs4);
 		}
-		log("---------");
+		print("---------");
 		if (mod) {
-			log("mod ImageBase: %p\n", mod);
+			print("mod ImageBase: %p\n", mod);
 
 			int test[] = { -1, 0, 3, 4, 12, 18, 19, 100 };
 			for (int i = 0; i < 8; i++) {
 				DWORD rs = getFuncByOrdinal(fileBuffer, test[i]);
 				if (rs) {
-					log("valid: %d, %p", test[i], rs);
+					print("valid: %d, %p", test[i], rs);
 					DWORD funcPos = (DWORD)mod + rs;
 					int v = ((int(*)(int, int))funcPos)(100, 2);
-					log("> %d", v);
+					print("> %d", v);
 				}
 			}
 
 			PCSTR funcName = "makeLeft";
 			DWORD rs = getFuncByName(fileBuffer, funcName);
 			if (rs) {
-				log("%p", rs);
+				print("%p", rs);
 				DWORD funcPos = (DWORD)mod + rs;
 				int v = ((int(*)(int, int))funcPos)(100, 2);
-				log("> %d", v);
+				print("> %d", v);
 			}
 		}
 
@@ -350,12 +350,12 @@ namespace peTest {
 		PVOID newBuffer = 0;
 		int secIdx = 0; //012,tail
 		DWORD newFileSize = addSection(fileBuffer, secIdx, ".test", 800, &newBuffer);
-		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
+		savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
 
 		if (newBuffer) {
 			char* savePath = res("notepad_test.exe");
 			savePE(newBuffer, newFileSize, savePath);
-			log("save finish: %s", savePath);
+			print("save finish: %s", savePath);
 
 			free(savePath);
 			free(newBuffer);
@@ -379,6 +379,6 @@ namespace peTest {
 using namespace peTest;
 
 int main() {
-	test14();
+	test13();
 	return 0;
 }
