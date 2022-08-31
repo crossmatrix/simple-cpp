@@ -1,7 +1,9 @@
 #include "win32Tool.h"
 
 namespace win32Test {
-	void test1() {
+	void test1(HINSTANCE hInstance, LPSTR lpCmdLine) {
+		winLog(T("----------- %p %s"), hInstance, lpCmdLine);
+
 		winLog(T("show log: %s %d"), T("aa"), 102);
 		winLog(T("show log: %s %d"), T("ÄãºÃ"), 102);
 
@@ -13,10 +15,10 @@ namespace win32Test {
 	void test2(HINSTANCE hInstance) {
 		WNDCLASS wndCls = {};
 		TCHAR clsName[] = T("MyWindow");
+		wndCls.lpfnWndProc = MyWindowProc;
+		wndCls.hInstance = hInstance;
 		wndCls.lpszClassName = clsName;
 		wndCls.hbrBackground = (HBRUSH)COLOR_MENU;
-		wndCls.hInstance = hInstance;
-		wndCls.lpfnWndProc = MyWindowProc;
 		RegisterClass(&wndCls);
 
 		TCHAR wndName[] = T("MyFstWnd");
@@ -26,6 +28,12 @@ namespace win32Test {
 			return;
 		}
 		ShowWindow(hwnd, SW_SHOW);
+
+		MSG msg;
+		while (GetMessage(&msg, 0, 0, 0)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 	}
 
 	LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -93,26 +101,22 @@ namespace win32Test {
 			switch (wParam) {
 			case 65:
 			{
-				WCHAR c[10] = {};
-				_itow(wParam, c, 10);
-				const TCHAR* h = TEXT("suc1");
+				TCHAR c[10] = {};
+				_itoa(wParam, c, 10);
+				const TCHAR* h = T("suc1");
 				MessageBox(0, c, h, 0);
 				break;
 			}
 			case 70:
 			{
-				WCHAR c[10] = {};
-				_itow(wParam, c, 10);
-				const TCHAR* h = TEXT("suc2");
+				TCHAR c[10] = {};
+				_itoa(wParam, c, 10);
+				const TCHAR* h = T("suc2");
 				MessageBox(0, c, h, 0);
 				break;
 			}
 			default:
-			{
-				const TCHAR* h = TEXT("error");
-				MessageBox(0, h, h, 0);
 				break;
-			}
 			}
 			break;
 		}
@@ -133,7 +137,7 @@ namespace win32Test {
 using namespace win32Test;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-	//test1();
+	//test1(hInstance, lpCmdLine);
 	test2(hInstance);
 	return 0;
 }

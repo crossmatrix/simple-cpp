@@ -3,7 +3,6 @@
 
 #include <Windows.h>
 #include <stdio.h>
-#include <stdio.h>
 #include <locale.h>
 
 void __cdecl DbgLogA(const char* format, ...) {
