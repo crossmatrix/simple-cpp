@@ -491,6 +491,11 @@ void showData_1_11_Import_Bound(PVOID fileBuffer) {
 		}
 	}
 
+	dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress;
+	if (dataRva) {
+		print("----------IAT table---------- %p\n", dataRva);
+	}
+
 	dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress;
 	if (!dataRva) {
 		print("no bound import info");
@@ -541,6 +546,18 @@ bool correctRva(DWORD& checkRva, PVOID fileBuffer, PVOID oldBuffer, DWORD refPos
 	if (foa >= refPos) {
 		foa += delta;
 		checkRva = foa2rva(fileBuffer, foa);
+		return true;
+	}
+	return false;
+}
+
+bool correctVa(DWORD& checkVa, PVOID fileBuffer, PVOID oldBuffer, DWORD refPos, DWORD delta, DWORD imgBase) {
+	DWORD rva = checkVa - imgBase;
+	DWORD foa = rva2foa(oldBuffer, rva);
+	if (foa >= refPos) {
+		foa += delta;
+		rva = foa2rva(fileBuffer, foa);
+		checkVa = imgBase + rva;
 		return true;
 	}
 	return false;
@@ -650,7 +667,11 @@ void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DW
 	//Config
 	pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG];
 	isFix = correctRva(pDir->VirtualAddress, fileBuffer, oldBuffer, secFoa, secSize);
-	//PIMAGE_LOAD_CONFIG_DIRECTORY
+	if (isFix) {
+		PIMAGE_LOAD_CONFIG_DIRECTORY pData = (PIMAGE_LOAD_CONFIG_DIRECTORY)rva2fa(fileBuffer, pDir->VirtualAddress);
+		correctVa(pData->SecurityCookie, fileBuffer, oldBuffer, secFoa, secSize, hNt->OptionalHeader.ImageBase);
+		correctVa(pData->SEHandlerTable, fileBuffer, oldBuffer, secFoa, secSize, hNt->OptionalHeader.ImageBase);
+	}
 	//todo: Dir(export, reloc)
 }
 
@@ -669,7 +690,7 @@ void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWO
 		PIMAGE_SECTION_HEADER sec = fstSec + i;
 		if (i == secIdx) {
 			strncpy((CHAR*)sec->Name, secName, 7);
-			sec->Characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;
+			sec->Characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE;
 			sec->SizeOfRawData = secSize;
 			sec->PointerToRawData = secFoa;
 			sec->Misc.VirtualSize = secSize;
@@ -691,9 +712,10 @@ void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWO
 		}
 	}
 
-	//SizeOfImage
+	//OptionalHeader
 	hNt->OptionalHeader.SizeOfImage = sizeOfImg;
-	//OEP
+	correctRva(hNt->OptionalHeader.BaseOfCode, fileBuffer, oldBuffer, secFoa, secSize);
+	correctRva(hNt->OptionalHeader.BaseOfData, fileBuffer, oldBuffer, secFoa, secSize);
 	correctRva(hNt->OptionalHeader.AddressOfEntryPoint, fileBuffer, oldBuffer, secFoa, secSize);
 	//Dir
 	restoreDir(fileBuffer, oldBuffer, secIdx, secSize, secFoa);

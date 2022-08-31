@@ -375,11 +375,27 @@ namespace peTest {
 		free(path);
 		free(fileBuffer);
 	}
+
+	void test15() {
+		char* path = res("notepad_test.exe");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showPE(path);
+
+		showData_0_Export(fileBuffer);
+		showData_5_Reloc(fileBuffer);
+		showData_2_Resource(fileBuffer);
+		showData_1_11_Import_Bound(fileBuffer);
+
+		free(path);
+		free(fileBuffer);
+	}
 }
 
 using namespace peTest;
 
 int main() {
-	test13();
+	test15();
 	return 0;
 }
