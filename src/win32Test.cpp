@@ -1,4 +1,5 @@
 #include "win32Tool.h"
+#include "res/resource.h"
 
 namespace win32Test {
 	void test1(HINSTANCE hInstance, LPSTR lpCmdLine) {
@@ -178,12 +179,50 @@ namespace win32Test {
 			DispatchMessage(&msg);
 		}
 	}
+
+	INT_PTR CALLBACK DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+		case WM_CLOSE:
+		{
+			PostQuitMessage(0);
+			return TRUE;
+		}
+		case WM_INITDIALOG:
+		{
+			WinLog(T("init dialog..."));
+			return TRUE;
+		}
+		case WM_COMMAND:
+		{
+			switch (LOWORD(wParam)) {
+			case IDC_BUTTON1:
+				MessageBox(NULL, TEXT("IDC_BUTTON1"), TEXT("OK"), MB_OK);
+				return TRUE;
+			case IDC_BUTTON2:
+				MessageBox(NULL, TEXT("IDC_BUTTON2"), TEXT("OUT"), MB_OK);
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			default:
+				break;
+			}
+			break;
+		}
+		default:
+			break;
+		}
+		return FALSE;
+	}
+
+	void test3(HINSTANCE hInstance) {
+		INT_PTR ptr = DialogBox(hInstance, PTCHAR(IDD_DIALOG1), NULL, DlgProc);
+	}
 }
 
 using namespace win32Test;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	//test1(hInstance, lpCmdLine);
-	test2(hInstance);
+	//test2(hInstance);
+	test3(hInstance);
 	return 0;
 }
