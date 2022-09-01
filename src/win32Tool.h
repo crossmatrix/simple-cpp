@@ -32,7 +32,7 @@ void __cdecl DbgLogW(const WCHAR* format, ...) {
 
 #ifdef _DEBUG
 #ifdef UNICODE
-#define winLog DbgLogW
+#define WinLog DbgLogW
 #else
 #define winLog DbgLogA
 #endif

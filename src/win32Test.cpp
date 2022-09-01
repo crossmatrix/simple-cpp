@@ -2,15 +2,155 @@
 
 namespace win32Test {
 	void test1(HINSTANCE hInstance, LPSTR lpCmdLine) {
-		winLog(T("----------- %p %s"), hInstance, lpCmdLine);
+		WinLog(T("----------- %p %s"), hInstance, lpCmdLine);
 
-		winLog(T("show log: %s %d"), T("aa"), 102);
-		winLog(T("show log: %s %d"), T("ÄãºÃ"), 102);
+		WinLog(T("show log: %s %d"), T("aa"), 102);
+		WinLog(T("show log: %s %d"), T("ÄãºÃ"), 102);
 
 		MessageBox(0, 0, 0, 0);
 	}
 
-	LRESULT CALLBACK MyWindowProc(HWND, UINT, WPARAM, LPARAM);
+	LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+		case WM_COMMAND:
+		{
+			WinLog(T("WM_COMMAND: %d %d"), wParam, lParam);
+			switch (wParam) {
+			case 1001:
+			{
+				WinLog(T("be called 1, wnd: %d"), lParam);
+				break;
+			}
+			case 1002:
+			{
+				WinLog(T("be called 2, wnd: %d"), lParam);
+				break;
+			}
+			case 1003:
+			{
+				WinLog(T("be called 3, wnd: %d"), lParam);
+				break;
+			}
+			default:
+				break;
+			}
+			break;
+		}
+		case WM_CREATE:
+		{
+			WinLog(T("WM_CREATE %d %d"), wParam, lParam);
+			CREATESTRUCT* createst = (CREATESTRUCT*)lParam;
+			WinLog(T("CREATESTRUCT %s"), createst->lpszClass);
+			break;
+		}
+		case WM_MOVE:
+		{
+			WinLog(T("WM_MOVE %d %d"), wParam, lParam);
+			POINTS points = MAKEPOINTS(lParam);
+			WinLog(T("X Y %d %d"), points.x, points.y);
+			break;
+		}
+		case WM_SIZE:
+		{
+			WinLog(T("WM_SIZE %d %d"), wParam, lParam);
+			int newWidth = (int)(short)LOWORD(lParam);
+			int newHeight = (int)(short)HIWORD(lParam);
+			WinLog(T("WM_SIZE %d %d"), newWidth, newHeight);
+			break;
+		}
+		case WM_DESTROY:
+		{
+			WinLog(T("WM_DESTROY %d %d"), wParam, lParam);
+			PostQuitMessage(0);
+			break;
+		}
+		case WM_KEYUP:
+		{
+			//winLog("WM_KEYUP %d %d\n", wParam, lParam);
+			break;
+		}
+		case WM_KEYDOWN:
+		{
+			WinLog(T("WM_KEYDOWN %d %d"), wParam, lParam);
+			switch (wParam) {
+			case 65:
+			{
+				TCHAR c[10] = {};
+				_itow(wParam, c, 10);
+				const TCHAR* h = T("suc1");
+				MessageBox(0, c, h, 0);
+				break;
+			}
+			case 70:
+			{
+				TCHAR c[10] = {};
+				_itow(wParam, c, 10);
+				const TCHAR* h = T("suc2");
+				MessageBox(0, c, h, 0);
+				break;
+			}
+			default:
+				break;
+			}
+			break;
+		}
+		case WM_LBUTTONDOWN:
+		{
+			WinLog(T("WM_LBUTTONDOWN %d %d"), wParam, lParam);
+			POINTS points = MAKEPOINTS(lParam);
+			WinLog(T("WM_LBUTTONDOWN %d %d"), points.x, points.y);
+			break;
+		}
+		default:
+			return DefWindowProc(hwnd, uMsg, wParam, lParam);
+		}
+		return 0;
+	}
+
+	void CreateSubWnd(HINSTANCE hInstance, HWND hwnd) {
+		HWND wnd1 = CreateWindow(
+			T("Button"), T("btn1"),
+			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+			50, 20,
+			100, 30,
+			hwnd,
+			(HMENU)1001,
+			hInstance,
+			NULL
+		);
+		HWND wnd2 = CreateWindow(
+			T("Button"), T("btn2"),
+			WS_CHILD | WS_VISIBLE | BS_CHECKBOX | BS_AUTOCHECKBOX,
+			50, 60,
+			100, 30,
+			hwnd,
+			(HMENU)1002,
+			hInstance,
+			NULL
+		);
+		HWND wnd3 = CreateWindow(
+			T("Button"), T("btn2"),
+			WS_CHILD | WS_VISIBLE | BS_RADIOBUTTON,
+			50, 100,
+			100, 30,
+			hwnd,
+			(HMENU)1003,
+			hInstance,
+			NULL
+		);
+
+		WinLog(T("%d %d %d"), wnd1, wnd2, wnd3);
+
+		TCHAR clsName[20];
+		GetClassName(wnd1, clsName, 20);
+		WNDCLASS wndCls;
+		GetClassInfo(hInstance, clsName, &wndCls);
+		WinLog(T(">>1. %s %p"), clsName, wndCls.lpfnWndProc);
+
+		GetClassName(hwnd, clsName, 20);
+		GetClassInfo(hInstance, clsName, &wndCls);
+		WinLog(T(">>2. %s %p"), clsName, wndCls.lpfnWndProc);
+	}
 
 	void test2(HINSTANCE hInstance) {
 		WNDCLASS wndCls = {};
@@ -24,9 +164,12 @@ namespace win32Test {
 		TCHAR wndName[] = T("MyFstWnd");
 		HWND hwnd = CreateWindow(clsName, wndName, WS_OVERLAPPEDWINDOW, 700, 500, 500, 350, NULL, NULL, hInstance, NULL);
 		if (!hwnd) {
-			winLog(T("create %s error"), wndName);
+			WinLog(T("create %s error"), wndName);
 			return;
 		}
+
+		CreateSubWnd(hInstance, hwnd);
+
 		ShowWindow(hwnd, SW_SHOW);
 
 		MSG msg;
@@ -34,103 +177,6 @@ namespace win32Test {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-	}
-
-	LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-		switch (uMsg) {
-		case WM_COMMAND:
-		{
-			winLog(T("WM_COMMAND: %d %d"), wParam, lParam);
-			switch (wParam) {
-			case 1001:
-			{
-				winLog(T("be called 1, wnd: %d"), lParam);
-				break;
-			}
-			case 1002:
-			{
-				winLog(T("be called 2, wnd: %d"), lParam);
-				break;
-			}
-			case 1003:
-			{
-				winLog(T("be called 3, wnd: %d"), lParam);
-				break;
-			}
-			default:
-				break;
-			}
-			break;
-		}
-		case WM_CREATE:
-		{
-			winLog(T("WM_CREATE %d %d"), wParam, lParam);
-			CREATESTRUCT* createst = (CREATESTRUCT*)lParam;
-			winLog(T("CREATESTRUCT %s"), createst->lpszClass);
-			break;
-		}
-		case WM_MOVE:
-		{
-			winLog(T("WM_MOVE %d %d"), wParam, lParam);
-			POINTS points = MAKEPOINTS(lParam);
-			winLog(T("X Y %d %d"), points.x, points.y);
-			break;
-		}
-		case WM_SIZE:
-		{
-			winLog(T("WM_SIZE %d %d"), wParam, lParam);
-			int newWidth = (int)(short)LOWORD(lParam);
-			int newHeight = (int)(short)HIWORD(lParam);
-			winLog(T("WM_SIZE %d %d"), newWidth, newHeight);
-			break;
-		}
-		case WM_DESTROY:
-		{
-			winLog(T("WM_DESTROY %d %d"), wParam, lParam);
-			PostQuitMessage(0);
-			break;
-		}
-		case WM_KEYUP:
-		{
-			//winLog("WM_KEYUP %d %d\n", wParam, lParam);
-			break;
-		}
-		case WM_KEYDOWN:
-		{
-			winLog(T("WM_KEYDOWN %d %d"), wParam, lParam);
-			switch (wParam) {
-			case 65:
-			{
-				TCHAR c[10] = {};
-				_itoa(wParam, c, 10);
-				const TCHAR* h = T("suc1");
-				MessageBox(0, c, h, 0);
-				break;
-			}
-			case 70:
-			{
-				TCHAR c[10] = {};
-				_itoa(wParam, c, 10);
-				const TCHAR* h = T("suc2");
-				MessageBox(0, c, h, 0);
-				break;
-			}
-			default:
-				break;
-			}
-			break;
-		}
-		case WM_LBUTTONDOWN:
-		{
-			winLog(T("WM_LBUTTONDOWN %d %d"), wParam, lParam);
-			POINTS points = MAKEPOINTS(lParam);
-			winLog(T("WM_LBUTTONDOWN %d %d"), points.x, points.y);
-			break;
-		}
-		default:
-			return DefWindowProc(hwnd, uMsg, wParam, lParam);
-		}
-		return 0;
 	}
 }
 
