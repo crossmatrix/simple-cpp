@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <locale.h>
+#include <tchar.h>
 
 void __cdecl DbgLogA(const char* format, ...) {
     va_list vlArgs;
@@ -34,12 +35,12 @@ void __cdecl DbgLogW(const WCHAR* format, ...) {
 #ifdef UNICODE
 #define WinLog DbgLogW
 #else
-#define winLog DbgLogA
+#define WinLog DbgLogA
 #endif
 #else
-#define winLog
+#define WinLog
 #endif
 
-#define T TEXT
+//#define T TEXT
 
 #endif // ! WIN32TOOL_H_
