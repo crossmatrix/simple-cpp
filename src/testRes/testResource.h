@@ -2,11 +2,11 @@
 // Microsoft Visual C++ 生成的包含文件。
 // 供 Resource.rc 使用
 //
-#define IDD_DIALOG                      101
-#define IDI_ICON                        107
-#define IDC_BTN_SHOW                    1001
-#define IDC_EDIT1                       1004
-#define IDC_EDIT2                       1005
+#define IDD_DIALOG                      1001
+#define IDI_ICON                        1007
+#define IDC_BTN_SHOW                    10001
+#define IDC_EDIT1                       10004
+#define IDC_EDIT2                       10005
 
 // Next default values for new objects
 // 

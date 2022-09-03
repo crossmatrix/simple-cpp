@@ -1,5 +1,6 @@
-#include "peTool.h"
 #include <locale.h>
+#include <Windows.h>
+#include <stdio.h>
 
 namespace win32Ready {
 	void test1() {
@@ -54,6 +55,6 @@ namespace win32Ready {
 
 using namespace win32Ready;
 
-void main() {
+void main_ready() {
 	test2();
 }

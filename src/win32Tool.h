@@ -1,3 +1,4 @@
+#pragma once
 #ifndef  WIN32TOOL_H_
 #define WIN32TOOL_H_
 
@@ -40,7 +41,5 @@ void __cdecl DbgLogW(const WCHAR* format, ...) {
 #else
 #define WinLog
 #endif
-
-//#define T TEXT
 
 #endif // ! WIN32TOOL_H_

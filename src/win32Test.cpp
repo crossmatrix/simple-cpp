@@ -1,5 +1,5 @@
 #include "win32Tool.h"
-#include "res/resource.h"
+#include "testRes/testResource.h"
 
 namespace win32Test {
 	void test1(HINSTANCE hInstance, LPSTR lpCmdLine) {
