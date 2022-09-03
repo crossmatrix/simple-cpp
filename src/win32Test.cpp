@@ -1,8 +1,8 @@
 #include "win32Tool.h"
 #include "res/resource.h"
 
-namespace win32Test{
-	void test1(HINSTANCE hInstance, LPSTR lpCmdLine){
+namespace win32Test {
+	void test1(HINSTANCE hInstance, LPSTR lpCmdLine) {
 		WinLog(_T("----------- %p %s"), hInstance, lpCmdLine);
 
 		WinLog(_T("show log: %s %d"), _T("aa"), 102);
@@ -11,20 +11,20 @@ namespace win32Test{
 		MessageBox(0, 0, 0, 0);
 	}
 
-	LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
-		switch(uMsg){
-			case WM_COMMAND:{
+	LRESULT CALLBACK MyWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			case WM_COMMAND: {
 				WinLog(_T("WM_COMMAND: %d %d"), wParam, lParam);
-				switch(wParam){
-					case 1001:{
+				switch (wParam) {
+					case 1001: {
 						WinLog(_T("be called 1, wnd: %d"), lParam);
 						break;
 					}
-					case 1002:{
+					case 1002: {
 						WinLog(_T("be called 2, wnd: %d"), lParam);
 						break;
 					}
-					case 1003:{
+					case 1003: {
 						WinLog(_T("be called 3, wnd: %d"), lParam);
 						break;
 					}
@@ -33,45 +33,45 @@ namespace win32Test{
 				}
 				break;
 			}
-			case WM_CREATE:{
+			case WM_CREATE: {
 				WinLog(_T("WM_CREATE %d %d"), wParam, lParam);
 				CREATESTRUCT* createst = (CREATESTRUCT*)lParam;
 				WinLog(_T("CREATESTRUCT %s"), createst->lpszClass);
 				break;
 			}
-			case WM_MOVE:{
+			case WM_MOVE: {
 				WinLog(_T("WM_MOVE %d %d"), wParam, lParam);
 				POINTS points = MAKEPOINTS(lParam);
 				WinLog(_T("X Y %d %d"), points.x, points.y);
 				break;
 			}
-			case WM_SIZE:{
+			case WM_SIZE: {
 				WinLog(_T("WM_SIZE %d %d"), wParam, lParam);
 				int newWidth = (int)(short)LOWORD(lParam);
 				int newHeight = (int)(short)HIWORD(lParam);
 				WinLog(_T("WM_SIZE %d %d"), newWidth, newHeight);
 				break;
 			}
-			case WM_DESTROY:{
+			case WM_DESTROY: {
 				WinLog(_T("WM_DESTROY %d %d"), wParam, lParam);
 				PostQuitMessage(0);
 				break;
 			}
-			case WM_KEYUP:{
+			case WM_KEYUP: {
 				//winLog("WM_KEYUP %d %d\n", wParam, lParam);
 				break;
 			}
-			case WM_KEYDOWN:{
+			case WM_KEYDOWN: {
 				WinLog(_T("WM_KEYDOWN %d %d"), wParam, lParam);
-				switch(wParam){
-					case 65:{
+				switch (wParam) {
+					case 65: {
 						TCHAR c[10] = {};
 						_itot(wParam, c, 10);
 						const TCHAR* h = _T("suc1");
 						MessageBox(0, c, h, 0);
 						break;
 					}
-					case 70:{
+					case 70: {
 						TCHAR c[10] = {};
 						_itot(wParam, c, 10);
 						const TCHAR* h = _T("suc2");
@@ -83,7 +83,7 @@ namespace win32Test{
 				}
 				break;
 			}
-			case WM_LBUTTONDOWN:{
+			case WM_LBUTTONDOWN: {
 				WinLog(_T("WM_LBUTTONDOWN %d %d"), wParam, lParam);
 				POINTS points = MAKEPOINTS(lParam);
 				WinLog(_T("WM_LBUTTONDOWN %d %d"), points.x, points.y);
@@ -95,7 +95,7 @@ namespace win32Test{
 		return 0;
 	}
 
-	void CreateSubWnd(HINSTANCE hInstance, HWND hwnd){
+	void CreateSubWnd(HINSTANCE hInstance, HWND hwnd) {
 		HWND wnd1 = CreateWindow(
 			_T("Button"), _T("btn1"),
 			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
@@ -140,7 +140,7 @@ namespace win32Test{
 		WinLog(_T(">>2. %s %p"), clsName, wndCls.lpfnWndProc);
 	}
 
-	void test2(HINSTANCE hInstance){
+	void test2(HINSTANCE hInstance) {
 		WNDCLASS wndCls = {};
 		TCHAR clsName[] = _T("MyWindow");
 		wndCls.lpfnWndProc = MyWindowProc;
@@ -151,7 +151,7 @@ namespace win32Test{
 
 		TCHAR wndName[] = _T("MyFstWnd");
 		HWND hwnd = CreateWindow(clsName, wndName, WS_OVERLAPPEDWINDOW, 700, 500, 500, 350, NULL, NULL, hInstance, NULL);
-		if(!hwnd){
+		if (!hwnd) {
 			WinLog(_T("create %s error"), wndName);
 			return;
 		}
@@ -161,26 +161,30 @@ namespace win32Test{
 		ShowWindow(hwnd, SW_SHOW);
 
 		MSG msg;
-		while(GetMessage(&msg, 0, 0, 0)){
+		while (GetMessage(&msg, 0, 0, 0)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 	}
 
-	INT_PTR CALLBACK DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam){
+	INT_PTR CALLBACK DlgProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		//WinLog(_T("%x"), uMsg);
-		switch(uMsg){
-			case WM_CLOSE:{
+		switch (uMsg) {
+			case WM_CLOSE: {
 				EndDialog(hwndDlg, 0);
 				return TRUE;
 			}
-			case WM_INITDIALOG:{
+			case WM_INITDIALOG: {
 				WinLog(_T("init dialog..."));
+				HINSTANCE hInstance = (HINSTANCE)lParam;
+				HICON hIcon = LoadIcon(hInstance, PTCHAR(IDI_ICON));
+				SendMessage(hwndDlg, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+				SendMessage(hwndDlg, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
 				return TRUE;
 			}
-			case WM_COMMAND:{
-				switch(wParam){
-					case IDC_BTN_SHOW:{
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BTN_SHOW: {
 						WinLog(_T("btnShow be called"));
 						HWND ipt1 = GetDlgItem(hwndDlg, IDC_EDIT1);
 						TCHAR cont1[50] = {};
@@ -207,14 +211,15 @@ namespace win32Test{
 		return FALSE;
 	}
 
-	void test3(HINSTANCE hInstance){
-		INT_PTR ptr = DialogBox(hInstance, PTCHAR(IDD_DIALOG1), NULL, DlgProc);
+	void test3(HINSTANCE hInstance) {
+		//INT_PTR ptr = DialogBox(hInstance, PTCHAR(IDD_DIALOG), NULL, DlgProc);
+		DialogBoxParam(hInstance, PTCHAR(IDD_DIALOG), NULL, DlgProc, (LPARAM)hInstance);
 	}
 }
 
 using namespace win32Test;
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	//test1(hInstance, lpCmdLine);
 	//test2(hInstance);
 	test3(hInstance);

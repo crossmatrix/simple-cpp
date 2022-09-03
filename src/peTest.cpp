@@ -3,7 +3,7 @@
 namespace peTest {
 	const char* p1 = "E:/code/cpp/simple-cpp/res/";
 	const char* p2 = "D:/Code/vsDir/simple-cpp/res/";
-	const char* FILE_ROOT = p2;
+	const char* FILE_ROOT = p1;
 
 	char* res(const char* name) {
 		char* rs = (char*)malloc_s(50);
@@ -272,7 +272,7 @@ namespace peTest {
 		if (mod) {
 			print("mod ImageBase: %p\n", mod);
 
-			int test[] = { -1, 0, 3, 4, 12, 18, 19, 100 };
+			int test[] = {-1, 0, 3, 4, 12, 18, 19, 100};
 			for (int i = 0; i < 8; i++) {
 				DWORD rs = getFuncByOrdinal(fileBuffer, test[i]);
 				if (rs) {
@@ -366,7 +366,8 @@ namespace peTest {
 	}
 
 	void test14() {
-		char* path = res("notepad.exe");
+		//char* path = res("notepad.exe");
+		char* path = res("win32.exe");
 		PVOID fileBuffer = 0;
 		openPE(path, &fileBuffer);
 
@@ -396,6 +397,6 @@ namespace peTest {
 using namespace peTest;
 
 int main() {
-	test15();
+	test14();
 	return 0;
 }

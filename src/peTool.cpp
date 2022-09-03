@@ -563,8 +563,8 @@ bool correctVa(DWORD& checkVa, PVOID fileBuffer, PVOID oldBuffer, DWORD refPos, 
 	return false;
 }
 
-void resourceInfo(PVOID fileBuffer, DWORD dataRva, 
-	void(*nameFunc)(PIMAGE_RESOURCE_DIRECTORY, PIMAGE_RESOURCE_DIRECTORY_ENTRY, int, int), 
+void resourceInfo(PVOID fileBuffer, DWORD dataRva,
+	void(*nameFunc)(PIMAGE_RESOURCE_DIRECTORY, PIMAGE_RESOURCE_DIRECTORY_ENTRY, int, int),
 	std::function<void(PIMAGE_RESOURCE_DATA_ENTRY, int, PVOID)> dataFunc
 ) {
 	DWORD typeSize = sizeof(IMAGE_RESOURCE_DIRECTORY);
@@ -722,7 +722,7 @@ void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWO
 }
 
 //secIdx: [0, maxSecNum - 1], otherwise tail
-DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer){
+DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
