@@ -51,10 +51,15 @@ END
 //
 
 IDD_MAIN DIALOGEX 0, 0, 481, 313
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "pistol"
-FONT 8, "MS Shell Dlg", 400, 0, 0x1
+FONT 9, "微软雅黑", 400, 0, 0x0
 BEGIN
+    PUSHBUTTON      "PE",IDC_BTN_PE,420,12,54,18
+    CONTROL         "",IDC_MOD,"SysListView32",LVS_REPORT | WS_BORDER | WS_TABSTOP,6,210,408,96
+    CONTROL         "",IDC_PROC,"SysListView32",LVS_REPORT | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,6,18,408,174
+    LTEXT           "Module",IDC_STATIC,6,198,114,8
+    LTEXT           "Process",IDC_STATIC,6,6,114,8
 END
 
 
@@ -83,7 +88,12 @@ END
 
 IDD_MAIN AFX_DIALOG_LAYOUT
 BEGIN
-    0
+    0,
+    0, 0, 0, 0,
+    0, 100, 0, 0,
+    0, 100, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0
 END
 
 #endif    // 中文(简体，中国) resources
