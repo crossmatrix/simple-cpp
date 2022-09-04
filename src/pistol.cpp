@@ -2,17 +2,13 @@
 #include "pistolRes/pistolResource.h"
 #include <CommCtrl.h>
 #include <TlHelp32.h>
+#include <Psapi.h>
 #include <vector>
 #include <algorithm>
+#include "peTool.h"
 using namespace std;
 
 namespace pistol {
-	HINSTANCE appInstance;
-	HWND hDlg;
-	HWND hListProc;
-	HWND hListMod;
-	HWND hTextProc;
-
 	struct SimpleProcInfo {
 		DWORD pid;
 		TCHAR name[MAX_PATH];
@@ -23,11 +19,72 @@ namespace pistol {
 		}
 	};
 
+	HINSTANCE appInstance;
+	HWND hDlg;
+	HWND hListProc;
+	HWND hListMod;
+	HWND hTextProc;
+	vector<SimpleProcInfo> vecProc;
+	BOOL sortPid = FALSE;
+	BOOL sortProcName = FALSE;
+
+	void RefreshProc() {
+		ListView_DeleteAllItems(hListProc);
+
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		int size = vecProc.size();
+		TCHAR pid[0x20] = {};
+		for (int i = 0; i < size; i++) {
+			SimpleProcInfo p = vecProc.at(i);
+
+			item.pszText = p.name;
+			item.iItem = i;
+			item.iSubItem = 0;
+			ListView_InsertItem(hListProc, &item);
+
+			_itot(p.pid, pid, 10);
+			item.pszText = pid;
+			item.iItem = i;
+			item.iSubItem = 1;
+			ListView_SetItem(hListProc, &item);
+		}
+
+		TCHAR title[0x20] = {};
+		_sntprintf(title, 0x20, _T("Process(%d)"), size);
+		SetWindowText(hTextProc, title);
+	}
+
+	bool CmpProcName(SimpleProcInfo& x, SimpleProcInfo& y) {
+		return _tcscmp(x.name, y.name) < 0;
+	}
+
 	bool CmpPid(SimpleProcInfo& x, SimpleProcInfo& y) {
 		return x.pid < y.pid;
 	}
 
-	void GetProcessList(vector<SimpleProcInfo>& vec) {
+	void SortProc(int col) {
+		if (col == 0) {
+			sortProcName = ~sortProcName;
+			if (sortProcName) {
+				std::sort(vecProc.begin(), vecProc.end(), CmpProcName);
+			} else {
+				std::sort(vecProc.rbegin(), vecProc.rend(), CmpProcName);
+			}
+		} else if (col == 1) {
+			sortPid = ~sortPid;
+			if (sortPid) {
+				std::sort(vecProc.begin(), vecProc.end(), CmpPid);
+			} else {
+				std::sort(vecProc.rbegin(), vecProc.rend(), CmpPid);
+			}
+		}
+		RefreshProc();
+	}
+
+	void GetProcessList() {
+		vecProc.clear();
 		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 		if (hSnapshot == INVALID_HANDLE_VALUE) {
 			return;
@@ -36,65 +93,12 @@ namespace pistol {
 		PROCESSENTRY32 proc = {};
 		proc.dwSize = sizeof(PROCESSENTRY32);
 		if (Process32First(hSnapshot, &proc)) {
-			//BOOL isGetMod = FALSE;
-			//DWORD priorityCls;
-			//MODULEENTRY32 mod = {};
-
 			do {
-				//isGetMod = GetProcessModule(proc.th32ProcessID, proc.th32ModuleID, &mod, sizeof(MODULEENTRY32));
-				//if (isGetMod) {
-				//	// Get the actual priority class. 
-				//	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, proc.th32ProcessID);
-				//	priorityCls = GetPriorityClass(hProcess);
-				//	CloseHandle(hProcess);
-
-				//	// Print the process's information. 
-				//	printf("\nPriority Class Base\t%d\n",
-				//		proc.pcPriClassBase);
-				//	printf("PID\t\t\t%d\n", proc.th32ProcessID);
-				//	printf("Thread Count\t\t%d\n", proc.cntThreads);
-				//	printf("Module Name\t\t%s\n", mod.szModule);
-				//	printf("Full Path\t\t%s\n\n", mod.szExePath);
-				//}
-
 				SimpleProcInfo info(proc.th32ProcessID, proc.szExeFile);
-				vec.push_back(info);
+				vecProc.push_back(info);
 			} while (Process32Next(hSnapshot, &proc));
 		}
-
 		CloseHandle(hSnapshot);
-
-		std::sort(vec.begin(), vec.end(), CmpPid);
-	}
-
-	void RefreshProc() {
-		ListView_DeleteAllItems(hListProc);
-
-		LV_ITEM item = {};
-		item.mask = LVIF_TEXT;
-
-		vector<SimpleProcInfo> vec;
-		GetProcessList(vec);
-		int size = vec.size();
-		TCHAR pid[0x20] = {};
-		for (int i = 0; i < size; i++) {
-		  	SimpleProcInfo* p = &vec.at(i);
-			
-			item.pszText = p->name;
-			item.iItem = i;
-			item.iSubItem = 0;
-			ListView_InsertItem(hListProc, &item);
-
-			_itot(p->pid, pid, 10);
-			item.pszText = pid;
-			item.iItem = i;
-			item.iSubItem = 1;
-			ListView_SetItem(hListProc, &item);
-		}
-		
-		TCHAR title[0x20] = {};
-		_sntprintf(title, 0x20, _T("process(%d)"), size);
-		SetWindowText(hTextProc, title);
 	}
 
 	void InitList() {
@@ -106,7 +110,6 @@ namespace pistol {
 		col.mask = LVCF_TEXT | LVCF_WIDTH;
 
 		int colNum = 4;
-		
 		PCTCH procColName[] = {
 			_T("process"), _T("pid"), _T("imageBase"), _T("imageSize")
 		};
@@ -132,7 +135,36 @@ namespace pistol {
 			ListView_InsertColumn(hListMod, i, &col);
 		}
 
-		RefreshProc();
+		GetProcessList();
+		SortProc(1);
+	}
+
+	void GetModuleList(int pid) {
+		HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+		if (!hProcess) {
+			MessageBox(0, _T("no privilege"), 0, 0);
+			return;
+		}
+
+		DWORD cbNeeded;
+		HMODULE hMods[1024];
+		if (EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded)) {
+			TCHAR szModName[MAX_PATH];
+			for (int i = 0, max = (cbNeeded / sizeof(HMODULE)); i < max; i++) {
+
+				//GetModuleBaseName
+				//GetModuleFileName
+				//GetModuleHandle
+				//GetModuleInformation
+
+				if (GetModuleFileNameEx(hProcess, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
+					//_tprintf(TEXT("\t%s (0x%08X)\n"), szModName, hMods[i]);
+					WinLog(_T("%s"), szModName);
+				}
+			}
+		}
+
+		CloseHandle(hProcess);
 	}
 
 	void RefreshMod(HWND hListproc) {
@@ -142,8 +174,7 @@ namespace pistol {
 		}
 		TCHAR pid[0x20];
 		ListView_GetItemText(hListproc, rowId, 1, pid, 0x20);
-
-		WinLog(_T("pid = %s"), pid);
+		GetModuleList(_ttoi(pid));
 	}
 
 	INT_PTR CALLBACK MainDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -159,8 +190,13 @@ namespace pistol {
 			}
 			case WM_NOTIFY: {
 				NMHDR* pNMHDR = (NMHDR*)lParam;
-				if (wParam == IDC_LV_PROC && pNMHDR->code == NM_CLICK) {
-					RefreshMod(pNMHDR->hwndFrom);
+				if (wParam == IDC_LV_PROC) {
+					if (pNMHDR->code == NM_CLICK) {
+						RefreshMod(pNMHDR->hwndFrom);
+					} else if (pNMHDR->code == LVN_COLUMNCLICK) {
+						NMLISTVIEW* pNMLV = (NMLISTVIEW*)lParam;
+						SortProc(pNMLV->iSubItem);
+					}
 				}
 				break;
 			}
