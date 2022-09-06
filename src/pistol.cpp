@@ -19,77 +19,67 @@ namespace pistol {
 		}
 	};
 
+	struct SortData {
+		int colId;
+		bool asc;
+	};
+
 	HINSTANCE appInstance;
 	HWND hDlg;
 	HWND hListProc;
 	HWND hListMod;
 	HWND hTextProc;
 	vector<SimpleProcInfo> vecProc;
-	BOOL sortPid = FALSE;
-	BOOL sortProcName = FALSE;
 
-	void RefreshProc() {
-		ListView_DeleteAllItems(hListProc);
+	int CALLBACK CompareFunc(LPARAM p1, LPARAM p2, LPARAM data) {
+		SortData* pData = (SortData*)data;
+		//WinLog(_T("%d %d"), pData->asc, pData->colId);
+		//WinLog(_T("%s %s"), cont1, cont2);
 
-		LV_ITEM item = {};
-		item.mask = LVIF_TEXT;
+		TCHAR cont1[MAX_PATH] = {0};
+		ListView_GetItemText(hListProc, p1, pData->colId, cont1, MAX_PATH);
+		TCHAR cont2[MAX_PATH] = {0};
+		ListView_GetItemText(hListProc, p2, pData->colId, cont2, MAX_PATH);
 
-		int size = vecProc.size();
-		TCHAR pid[0x20] = {};
-		for (int i = 0; i < size; i++) {
-			SimpleProcInfo p = vecProc.at(i);
-
-			item.pszText = p.name;
-			item.iItem = i;
-			item.iSubItem = 0;
-			ListView_InsertItem(hListProc, &item);
-
-			_itot(p.pid, pid, 10);
-			item.pszText = pid;
-			item.iItem = i;
-			item.iSubItem = 1;
-			ListView_SetItem(hListProc, &item);
+		BOOL flag;
+		if (pData->colId == 0) {
+			flag = _tcscmp(cont1, cont2) > 0;
+		} else if(pData->colId == 1){
+			int v1 = _ttoi(cont1);
+			int v2 = _ttoi(cont2);
+			flag = v1 > v2;
+		} else {
+			return FALSE;
 		}
-
-		TCHAR title[0x20] = {};
-		_sntprintf(title, 0x20, _T("Process(%d)"), size);
-		SetWindowText(hTextProc, title);
-	}
-
-	bool CmpProcName(SimpleProcInfo& x, SimpleProcInfo& y) {
-		return _tcscmp(x.name, y.name) < 0;
-	}
-
-	bool CmpPid(SimpleProcInfo& x, SimpleProcInfo& y) {
-		return x.pid < y.pid;
+		if (!pData->asc) {
+			flag = !flag;
+		}
+		return flag;
 	}
 
 	void SortProc(int col) {
-		if (col == 0) {
-			sortProcName = ~sortProcName;
-			if (sortProcName) {
-				std::sort(vecProc.begin(), vecProc.end(), CmpProcName);
-			} else {
-				std::sort(vecProc.rbegin(), vecProc.rend(), CmpProcName);
-			}
-		} else if (col == 1) {
-			sortPid = ~sortPid;
-			if (sortPid) {
-				std::sort(vecProc.begin(), vecProc.end(), CmpPid);
-			} else {
-				std::sort(vecProc.rbegin(), vecProc.rend(), CmpPid);
-			}
-		}
-		RefreshProc();
+		static int sortColumn = 0;
+		static BOOL asc = TRUE;
+		if (col != sortColumn)
+			asc = TRUE;
+		else
+			asc = !asc;
+		sortColumn = col;
+
+		SortData data;
+		data.colId = sortColumn;
+		data.asc = asc;
+		ListView_SortItemsEx(hListProc, CompareFunc, &data);
 	}
 
 	void GetProcessList() {
-		vecProc.clear();
+		//vecProc
 		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 		if (hSnapshot == INVALID_HANDLE_VALUE) {
 			return;
 		}
 
+		vecProc.clear();
 		PROCESSENTRY32 proc = {};
 		proc.dwSize = sizeof(PROCESSENTRY32);
 		if (Process32First(hSnapshot, &proc)) {
@@ -99,6 +89,34 @@ namespace pistol {
 			} while (Process32Next(hSnapshot, &proc));
 		}
 		CloseHandle(hSnapshot);
+
+		//listview items
+		ListView_DeleteAllItems(hListProc);
+
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		int size = vecProc.size();
+		TCHAR pid[0x20] = {};
+		for (int i = 0; i < size; i++) {
+			SimpleProcInfo p = vecProc.at(i);
+			item.lParam = i;
+			item.iItem = i;
+
+			item.pszText = p.name;
+			item.iSubItem = 0;
+			ListView_InsertItem(hListProc, &item);
+
+			_itot(p.pid, pid, 10);
+			item.pszText = pid;
+			item.iSubItem = 1;
+			ListView_SetItem(hListProc, &item);
+		}
+		
+		//title
+		TCHAR title[0x20] = {};
+		_sntprintf(title, 0x20, _T("Process(%d)"), size);
+		SetWindowText(hTextProc, title);
 	}
 
 	void InitList() {
@@ -107,7 +125,7 @@ namespace pistol {
 		SendMessage(hListProc, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
 		LV_COLUMN col = {};
-		col.mask = LVCF_TEXT | LVCF_WIDTH;
+		col.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH;
 
 		int colNum = 4;
 		PCTCH procColName[] = {
@@ -136,7 +154,7 @@ namespace pistol {
 		}
 
 		GetProcessList();
-		SortProc(1);
+		SortProc(0);
 	}
 
 	void GetModuleList(int pid) {
