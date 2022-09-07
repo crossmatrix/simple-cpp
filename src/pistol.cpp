@@ -29,12 +29,11 @@ namespace pistol {
 	HWND hListProc;
 	HWND hListMod;
 	HWND hTextProc;
-	vector<SimpleProcInfo> vecProc;
 
-	int CALLBACK CompareFunc(LPARAM p1, LPARAM p2, LPARAM data) {
+	int CALLBACK compareFunc(LPARAM p1, LPARAM p2, LPARAM data) {
 		SortData* pData = (SortData*)data;
-		//WinLog(_T("%d %d"), pData->asc, pData->colId);
-		//WinLog(_T("%s %s"), cont1, cont2);
+		//winLog(_T("%d %d"), pData->asc, pData->colId);
+		//winLog(_T("%s %s"), cont1, cont2);
 
 		TCHAR cont1[MAX_PATH] = {0};
 		ListView_GetItemText(hListProc, p1, pData->colId, cont1, MAX_PATH);
@@ -57,7 +56,7 @@ namespace pistol {
 		return flag;
 	}
 
-	void SortProc(int col) {
+	void sortProc(int col) {
 		static int sortColumn = 0;
 		static BOOL asc = TRUE;
 		if (col != sortColumn)
@@ -69,17 +68,17 @@ namespace pistol {
 		SortData data;
 		data.colId = sortColumn;
 		data.asc = asc;
-		ListView_SortItemsEx(hListProc, CompareFunc, &data);
+		ListView_SortItemsEx(hListProc, compareFunc, &data);
 	}
 
-	void GetProcessList() {
+	void getProcessList() {
 		//vecProc
 		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 		if (hSnapshot == INVALID_HANDLE_VALUE) {
 			return;
 		}
 
-		vecProc.clear();
+		vector<SimpleProcInfo> vecProc;
 		PROCESSENTRY32 proc = {};
 		proc.dwSize = sizeof(PROCESSENTRY32);
 		if (Process32First(hSnapshot, &proc)) {
@@ -119,19 +118,19 @@ namespace pistol {
 		SetWindowText(hTextProc, title);
 	}
 
-	void InitList() {
+	void initList() {
 		hListProc = GetDlgItem(hDlg, IDC_LV_PROC);
 		hTextProc = GetDlgItem(hDlg, IDC_TITLE_PROC);
 		SendMessage(hListProc, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
 		LV_COLUMN col = {};
-		col.mask = LVCF_FMT | LVCF_TEXT | LVCF_WIDTH;
+		col.mask = LVCF_TEXT | LVCF_WIDTH;
 
-		int colNum = 4;
+		int colNum = 2;
 		PCTCH procColName[] = {
-			_T("process"), _T("pid"), _T("imageBase"), _T("imageSize")
+			_T("process"), _T("pid")
 		};
-		int procColWidth[] = {400, 100, 100, 100};
+		int procColWidth[] = {400, 100};
 
 		for (int i = 0; i < colNum; i++) {
 			col.pszText = (PTCHAR)procColName[i];
@@ -141,11 +140,11 @@ namespace pistol {
 
 		hListMod = GetDlgItem(hDlg, IDC_LV_MOD);
 		SendMessage(hListMod, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
-		colNum = 2;
+		colNum = 4;
 		PCTCH modColName[] = {
-			_T("name"), _T("position")
+			_T("name"), _T("oep"), _T("imageSize"), _T("path")
 		};
-		int modColWidth[] = {600, 100};
+		int modColWidth[] = {100, 100, 100, 400};
 
 		for (int i = 0; i < colNum; i++) {
 			col.pszText = (PTCHAR)modColName[i];
@@ -153,53 +152,85 @@ namespace pistol {
 			ListView_InsertColumn(hListMod, i, &col);
 		}
 
-		GetProcessList();
-		SortProc(0);
+		getProcessList();
+		sortProc(0);
 	}
 
-	void GetModuleList(int pid) {
+	void getModuleList(int pid) {
+		ListView_DeleteAllItems(hListMod);
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
 		HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
 		if (!hProcess) {
-			MessageBox(0, _T("no privilege"), 0, 0);
+			item.iItem = 0;
+			item.iSubItem = 0;
+			TCHAR msg[0x20];
+			_sntprintf(msg, sizeof(msg), _T("err: %d"), GetLastError());
+			item.pszText = msg;
+			ListView_InsertItem(hListMod, &item);
 			return;
 		}
 
 		DWORD cbNeeded;
 		HMODULE hMods[1024];
 		if (EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded)) {
-			TCHAR szModName[MAX_PATH];
+			TCHAR name[MAX_PATH] = {};
+			TCHAR path[MAX_PATH] = {};
+			MODULEINFO info = {};
 			for (int i = 0, max = (cbNeeded / sizeof(HMODULE)); i < max; i++) {
+				item.iItem = i;
+				if (GetModuleBaseName(hProcess, hMods[i], name, MAX_PATH)) {
+					item.iSubItem = 0;
+					item.pszText = name;
+					ListView_InsertItem(hListMod, &item);
+				}
+				if (GetModuleFileNameEx(hProcess, hMods[i], path, MAX_PATH)) {
+					item.iSubItem = 3;
+					item.pszText = path;
+					ListView_SetItem(hListMod, &item);
+				}
+				if (GetModuleInformation(hProcess, hMods[i], &info, sizeof(info))) {
+					TCHAR oepAddr[10] = {};
+					_sntprintf(oepAddr, sizeof(oepAddr), _T("%08X"), info.EntryPoint);
+					item.iSubItem = 1;
+					item.pszText = oepAddr;
+					ListView_SetItem(hListMod, &item);
 
-				//GetModuleBaseName
-				//GetModuleFileName
-				//GetModuleHandle
-				//GetModuleInformation
-
-				if (GetModuleFileNameEx(hProcess, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
-					//_tprintf(TEXT("\t%s (0x%08X)\n"), szModName, hMods[i]);
-					WinLog(_T("%s"), szModName);
+					TCHAR imgSize[10] = {};
+					_sntprintf(imgSize, sizeof(imgSize), _T("%08X"), info.SizeOfImage);
+					item.iSubItem = 2;
+					item.pszText = imgSize;
+					ListView_SetItem(hListMod, &item);
 				}
 			}
+		} else {
+			item.iItem = 0;
+			item.iSubItem = 0;
+			TCHAR msg[0x20];
+			_sntprintf(msg, sizeof(msg), _T("err: %d"), GetLastError());
+			item.pszText = msg;
+			ListView_InsertItem(hListMod, &item);
 		}
 
 		CloseHandle(hProcess);
 	}
 
-	void RefreshMod(HWND hListproc) {
+	void refreshMod(HWND hListproc) {
 		int rowId = ListView_GetNextItem(hListproc, -1, LVNI_SELECTED);
 		if (rowId < 0) {
 			return;
 		}
-		TCHAR pid[0x20];
+		TCHAR pid[0x20] = {};
 		ListView_GetItemText(hListproc, rowId, 1, pid, 0x20);
-		GetModuleList(_ttoi(pid));
+		getModuleList(_ttoi(pid));
 	}
 
-	INT_PTR CALLBACK MainDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	INT_PTR CALLBACK mainDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		switch (uMsg) {
 			case WM_INITDIALOG: {
 				hDlg = aDlg;
-				InitList();
+				initList();
 				break;
 			}
 			case WM_CLOSE: {
@@ -210,16 +241,16 @@ namespace pistol {
 				NMHDR* pNMHDR = (NMHDR*)lParam;
 				if (wParam == IDC_LV_PROC) {
 					if (pNMHDR->code == NM_CLICK) {
-						RefreshMod(pNMHDR->hwndFrom);
+						refreshMod(pNMHDR->hwndFrom);
 					} else if (pNMHDR->code == LVN_COLUMNCLICK) {
 						NMLISTVIEW* pNMLV = (NMLISTVIEW*)lParam;
-						SortProc(pNMLV->iSubItem);
+						sortProc(pNMLV->iSubItem);
 					}
 				}
 				break;
 			}
 			case WM_COMMAND: {
-				WinLog(_T("command: %p %p"), wParam, lParam);
+				winLog(_T("command: %p %p"), wParam, lParam);
 				break;
 			}
 			default: {
@@ -229,15 +260,15 @@ namespace pistol {
 		return TRUE;
 	}
 
-	void ShowMain(HINSTANCE hInstance) {
+	void showMain(HINSTANCE hInstance) {
 		appInstance = hInstance;
-		DialogBox(appInstance, MAKEINTRESOURCE(IDD_MAIN), NULL, MainDlgProc);
+		DialogBox(appInstance, MAKEINTRESOURCE(IDD_MAIN), NULL, mainDlgProc);
 	}
 };
 
 using namespace pistol;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-	ShowMain(hInstance);
+	showMain(hInstance);
 	return 0;
 }

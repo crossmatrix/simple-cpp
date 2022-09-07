@@ -34,12 +34,12 @@ void __cdecl DbgLogW(const WCHAR* format, ...) {
 
 #ifdef _DEBUG
 #ifdef UNICODE
-#define WinLog DbgLogW
+#define winLog DbgLogW
 #else
-#define WinLog DbgLogA
+#define winLog DbgLogA
 #endif
 #else
-#define WinLog
+#define winLog
 #endif
 
 #endif // ! WIN32TOOL_H_
