@@ -1,11 +1,6 @@
 #include "win32Tool.h"
+#include "peDlg.h"
 #include "pistolRes/pistolResource.h"
-#include <CommCtrl.h>
-#include <TlHelp32.h>
-#include <Psapi.h>
-#include <vector>
-#include <algorithm>
-#include "peTool.h"
 using namespace std;
 
 namespace pistol {
@@ -158,6 +153,9 @@ namespace pistol {
 
 	void getModuleList(int pid) {
 		ListView_DeleteAllItems(hListMod);
+		if (pid == 0) {
+			return;
+		}
 		LV_ITEM item = {};
 		item.mask = LVIF_TEXT;
 
@@ -226,6 +224,16 @@ namespace pistol {
 		getModuleList(_ttoi(pid));
 	}
 
+	void onClick_Refresh() {
+		getProcessList();
+		sortProc(0);
+		getModuleList(0);
+	}
+
+	void onClick_PE() {
+		peDlg::showPEDlg(appInstance);
+	}
+
 	INT_PTR CALLBACK mainDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		switch (uMsg) {
 			case WM_INITDIALOG: {
@@ -250,8 +258,16 @@ namespace pistol {
 				break;
 			}
 			case WM_COMMAND: {
-				winLog(_T("command: %p %p"), wParam, lParam);
-				break;
+				switch (wParam) {
+					case IDC_BTN_REFRESH:
+						onClick_Refresh();
+						break;
+					case IDC_BTN_PE:
+						onClick_PE();
+						break;
+					default:
+						return FALSE;
+				}
 			}
 			default: {
 				return FALSE;
