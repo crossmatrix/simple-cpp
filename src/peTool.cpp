@@ -40,8 +40,8 @@ void copyBin(PCSTR src, PCSTR dest) {
 	fclose(fp);
 }
 
-long openPE(IN PCSTR path, OUT PVOID* file) {
-	FILE* fp = fopen(path, "rb");
+long openPE(IN PCTCH path, OUT PVOID* file) {
+	FILE* fp = _tfopen(path, _T("rb"));
 	if (fp == NULL) {
 		print("file not exist: %s", path);
 		return 0;
@@ -64,8 +64,8 @@ long openPE(IN PCSTR path, OUT PVOID* file) {
 	return len;
 }
 
-void savePE(PVOID buffer, DWORD size, PCSTR path) {
-	FILE* fp = fopen(path, "wb");
+void savePE(PVOID buffer, DWORD size, PCTCH path) {
+	FILE* fp = _tfopen(path, _T("wb"));
 	if (!fp) {
 		print("open file error: %s", path);
 		return;
@@ -74,7 +74,7 @@ void savePE(PVOID buffer, DWORD size, PCSTR path) {
 	fclose(fp);
 }
 
-void showPE(PCSTR path) {
+void showPE(PCTCH path) {
 	PVOID fileBuffer = 0;
 	long len = openPE(path, &fileBuffer);
 	PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;

@@ -246,11 +246,11 @@ namespace pistol {
 				break;
 			}
 			case WM_NOTIFY: {
-				NMHDR* pNMHDR = (NMHDR*)lParam;
+				NMHDR* pNM = (NMHDR*)lParam;
 				if (wParam == IDC_LV_PROC) {
-					if (pNMHDR->code == NM_CLICK) {
-						refreshMod(pNMHDR->hwndFrom);
-					} else if (pNMHDR->code == LVN_COLUMNCLICK) {
+					if (pNM->code == NM_CLICK) {
+						refreshMod(pNM->hwndFrom);
+					} else if (pNM->code == LVN_COLUMNCLICK) {
 						NMLISTVIEW* pNMLV = (NMLISTVIEW*)lParam;
 						sortProc(pNMLV->iSubItem);
 					}
