@@ -57,8 +57,25 @@ namespace peDlg {
 		*/
 	}
 
-	void setDirData() {
+
+	void setDirData(PVOID fileBuffer) {
 		//export, reloc, import, boundImp, iat, delayImp, res, dbg, loadCfg
+		PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
+		PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)NT_HEADER(fileBuffer);
+		PIMAGE_DATA_DIRECTORY pDir = hNt->OptionalHeader.DataDirectory;
+		static PCTCH tabNames[] = {
+			_T("0_Export"), _T("1_Import"), _T("2_Resource"), _T("3_Exception"), _T("4_Security"), _T("5_Reloc"), _T("6_Debug"),
+			_T("7_Arch"), _T("8_GP"), _T("9_TLS"), _T("10_LoadCfg"), _T("11_Bound_I"), _T("12_IAT"), _T("13_Delay_I"), _T("14_COM")
+		};
+
+		for (int i = 0; i < 15; i++) {
+			DWORD va = pDir[i].VirtualAddress;
+			DWORD vs = pDir[i].Size;
+			if (vs != 0) {
+				winLog(_T("%s"), tabNames[i]);
+				//todo: ready tab
+			}
+		}
 	}
 
 	void setInfo() {
@@ -160,7 +177,7 @@ namespace peDlg {
 		}
 
 		//---dirData
-		setDirData();
+		setDirData(fileBuffer);
 
 		free(fileBuffer);
 	}
