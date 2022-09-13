@@ -9,7 +9,7 @@ namespace peDlg {
 	HWND hDlg;
 	HWND hTab;
 	HWND hSubDlg[2];
-	PCTCH pFilePath = 0;
+	TCHAR pFilePath[MAX_PATH] = {};
 
 	INT_PTR CALLBACK baseInfoDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		switch (uMsg) {
@@ -55,6 +55,10 @@ namespace peDlg {
 	void setBaseInfo() {
 		PVOID fileBuffer = 0;
 		long len = openPE(pFilePath, &fileBuffer);
+		if (!len) {
+			winLog(_T("open pe error"));
+			return;
+		}
 		PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 		PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)NT_HEADER(fileBuffer);
 
@@ -104,6 +108,8 @@ namespace peDlg {
 			_sntprintf(cont, 0x10, _T("%p"), pData->Size);
 			SetDlgItemText(dlg, fstEditId + 1, cont);
 		}
+
+		free(fileBuffer);
 	}
 
 	void setSections() {
@@ -111,7 +117,8 @@ namespace peDlg {
 	}
 
 	void onSelChanged_Tab() {
-		if (pFilePath == 0) {
+		int pathLen = _tcslen(pFilePath);
+		if (pathLen == 0) {
 			return;
 		}
 
@@ -135,7 +142,7 @@ namespace peDlg {
 		if (GetOpenFileName(&file)) {
 			HWND hEC = GetDlgItem(hDlg, IDC_FILE_PATH);
 			SetWindowText(hEC, path);
-			pFilePath = path;
+			_tcscpy(pFilePath, path);
 
 			int pageIdx = TabCtrl_GetCurFocus(hTab);
 			if (pageIdx == 0) {
