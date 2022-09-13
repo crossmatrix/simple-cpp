@@ -4,15 +4,14 @@
 //
 #define IDD_MAIN                        101
 #define IDD_PE                          103
-#define IDD_BASE_INFO                   105
-#define IDD_SECTION                     107
+#define IDD_DIR                         111
 #define IDC_BTN_REFRESH                 1003
 #define IDC_LV_MOD                      1005
 #define IDC_LV_PROC                     1006
 #define IDC_TITLE_PROC                  1007
 #define IDC_TITLE_MOD                   1008
+#define IDC_LV_SEC                      1009
 #define IDC_BTN_PE                      1010
-#define IDC_TAB                         1014
 #define IDC_FILE_PATH                   1015
 #define IDC_BTN_FILE                    1016
 #define IDC_EDIT1                       1017
@@ -61,14 +60,17 @@
 #define IDC_EDIT44                      1060
 #define IDC_EDIT45                      1061
 #define IDC_EDIT46                      1062
+#define IDC_LV_BOTTOM                   1067
+#define IDC_LV_TOP                      1068
+#define IDC_TAB_DIR                     1069
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        109
+#define _APS_NEXT_RESOURCE_VALUE        113
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1034
+#define _APS_NEXT_CONTROL_VALUE         1070
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -19,11 +19,11 @@ namespace pistol {
 		bool asc;
 	};
 
-	HINSTANCE appInstance;
-	HWND hDlg;
-	HWND hListProc;
-	HWND hListMod;
-	HWND hTextProc;
+	HINSTANCE appInstance = NULL;
+	HWND hDlg = NULL;
+	HWND hListProc = NULL;
+	HWND hListMod = NULL;
+	HWND hTextProc = NULL;
 
 	int CALLBACK compareFunc(LPARAM p1, LPARAM p2, LPARAM data) {
 		SortData* pData = (SortData*)data;
@@ -89,7 +89,6 @@ namespace pistol {
 
 		LV_ITEM item = {};
 		item.mask = LVIF_TEXT;
-
 		int size = vecProc.size();
 		TCHAR pid[0x20] = {};
 		for (int i = 0; i < size; i++) {
@@ -120,13 +119,11 @@ namespace pistol {
 
 		LV_COLUMN col = {};
 		col.mask = LVCF_TEXT | LVCF_WIDTH;
-
 		int colNum = 2;
 		PCTCH procColName[] = {
-			_T("process"), _T("pid")
+			_T("Process"), _T("PID")
 		};
 		int procColWidth[] = {400, 100};
-
 		for (int i = 0; i < colNum; i++) {
 			col.pszText = (PTCHAR)procColName[i];
 			col.cx = procColWidth[i];
@@ -137,10 +134,9 @@ namespace pistol {
 		SendMessage(hListMod, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 		colNum = 4;
 		PCTCH modColName[] = {
-			_T("name"), _T("oep"), _T("imageSize"), _T("path")
+			_T("Name"), _T("EntryPoint"), _T("SizeOfImage"), _T("Path")
 		};
 		int modColWidth[] = {100, 100, 100, 400};
-
 		for (int i = 0; i < colNum; i++) {
 			col.pszText = (PTCHAR)modColName[i];
 			col.cx = modColWidth[i];
