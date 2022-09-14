@@ -60,6 +60,7 @@
 #define IDC_EDIT44                      1060
 #define IDC_EDIT45                      1061
 #define IDC_EDIT46                      1062
+#define IDC_EDIT47                      1063
 #define IDC_LV_BOTTOM                   1067
 #define IDC_LV_TOP                      1068
 #define IDC_TAB_DIR                     1069

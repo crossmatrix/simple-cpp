@@ -5,61 +5,73 @@
 using namespace std;
 
 namespace peDlg {
+	typedef void(*ParseDirData)(PVOID fileBuffer, HWND hwnd);
 	HINSTANCE appInstance = NULL;
-	HWND hDlg = NULL;
-	//HWND hTab = NULL;
-	//HWND hSubDlg[2] = {};
+	HWND hDlgRoot = NULL;
+	HWND hTabDir = NULL;
 	TCHAR pFilePath[MAX_PATH] = {};
 	HWND hListSec = NULL;
+	HWND hDlgDir[15] = {};
+	ParseDirData parseFuns[15] = {};
 
-	//INT_PTR CALLBACK baseInfoDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	//	switch (uMsg) {
-	//		default:
-	//			break;
-	//	}
-	//	return FALSE;
-	//}
+	INT_PTR CALLBACK dirDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			default:
+				break;
+		}
+		return FALSE;
+	}
 
-	void initComp() {
-		hListSec = GetDlgItem(hDlg, IDC_LV_SEC);
-		SendMessage(hListSec, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
+	void initListView(HWND hLV, int* colWidthArr, PCTCH* colNameArr, int colNum) {
+		SendMessage(hLV, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 		LV_COLUMN col = {};
 		col.mask = LVCF_TEXT | LVCF_WIDTH;
-		int colNum = 6;
-		PCTCH procColName[] = {
+		for (int i = 0; i < colNum; i++) {
+			col.pszText = (PTCHAR)colNameArr[i];
+			col.cx = colWidthArr[i];
+			ListView_InsertColumn(hLV, i, &col);
+		}
+	}
+
+	void parse_export(PVOID fileBuffer, HWND hwnd) {
+		static BOOL initHead = false;
+		if (!initHead) {
+			initHead = true;
+			HWND hListTop = GetDlgItem(hwnd, IDC_LV_TOP);
+			int colWidthArr[] = {100, 200};
+			PCTCH colNameArr[] = {
+				_T("Name"), _T("VirtualSize")
+			};
+			initListView(hListTop, colWidthArr, colNameArr, ARRAYSIZE(colWidthArr));
+		}
+	}
+
+	void parse_reloc(PVOID fileBuffer, HWND hwnd) {
+	}
+
+	void initComp() {
+		hListSec = GetDlgItem(hDlgRoot, IDC_LV_SEC);
+		int colWidthArr[] = {140, 120, 120, 120, 120, 120};
+		PCTCH colNameArr[] = {
 			_T("Name"), _T("VirtualSize"), _T("VirtualAddress"), _T("SizeOfRawData"), _T("PointerToRawData"), _T("Characteristics")
 		};
-		int procColWidth[] = {140, 120, 120, 120, 120, 120};
-		for (int i = 0; i < colNum; i++) {
-			col.pszText = (PTCHAR)procColName[i];
-			col.cx = procColWidth[i];
-			ListView_InsertColumn(hListSec, i, &col);
-		}
+		initListView(hListSec, colWidthArr, colNameArr, ARRAYSIZE(colWidthArr));
 
-		/*hTab = GetDlgItem(hDlg, IDC_TAB);
-		PCTCH tabNames[] = {_T("base"), _T("section")};
-		PCTCH dlgNames[] = {MAKEINTRESOURCE(IDD_BASE_INFO), MAKEINTRESOURCE(IDD_SECTION)};
+		hTabDir = GetDlgItem(hDlgRoot, IDC_TAB_DIR);
+		parseFuns[IMAGE_DIRECTORY_ENTRY_EXPORT] = parse_export;
 
 		RECT rect = {};
-		GetWindowRect(hDlg, &rect);
+		GetWindowRect(hTabDir, &rect);
 		LONG w = rect.right - rect.left - 15;
 		LONG h = rect.bottom - rect.top - 62;
 
-		TCITEM tci;
-		tci.mask = TCIF_TEXT;
-		for (int i = 0; i < 2; i++) {
-			tci.pszText = (PTCHAR)tabNames[i];
-			TabCtrl_InsertItem(hTab, i, &tci);
-			hSubDlg[i] = CreateDialog(appInstance, (PTCHAR)dlgNames[i], hDlg, (DLGPROC)baseInfoDlgProc);
-			SetWindowPos(hSubDlg[i], HWND_TOP, 0, 50, w, h, 0);
-			ShowWindow(hSubDlg[i], SW_SHOW);
+		for (int i = 0; i < 15; i++) {
+			hDlgDir[i] = CreateDialog(appInstance, MAKEINTRESOURCE(IDD_DIR), hTabDir, (DLGPROC)dirDlgProc);
+			SetWindowPos(hDlgDir[i], HWND_TOP, 0, 50, w, h, 0);
 		}
-		*/
 	}
 
-
 	void setDirData(PVOID fileBuffer) {
-		//export, reloc, import, boundImp, iat, delayImp, res, dbg, loadCfg
 		PIMAGE_DOS_HEADER hDos = (PIMAGE_DOS_HEADER)fileBuffer;
 		PIMAGE_NT_HEADERS hNt = (PIMAGE_NT_HEADERS)NT_HEADER(fileBuffer);
 		PIMAGE_DATA_DIRECTORY pDir = hNt->OptionalHeader.DataDirectory;
@@ -68,12 +80,21 @@ namespace peDlg {
 			_T("7_Arch"), _T("8_GP"), _T("9_TLS"), _T("10_LoadCfg"), _T("11_Bound_I"), _T("12_IAT"), _T("13_Delay_I"), _T("14_COM")
 		};
 
+		TabCtrl_DeleteAllItems(hTabDir);
+		TCITEM tci = {};
+		tci.mask = TCIF_TEXT | TCIF_PARAM;
+		int subIdx = 0;
+
 		for (int i = 0; i < 15; i++) {
 			DWORD va = pDir[i].VirtualAddress;
 			DWORD vs = pDir[i].Size;
 			if (vs != 0) {
-				winLog(_T("%s"), tabNames[i]);
-				//todo: ready tab
+				tci.pszText = (PTCHAR)tabNames[i];
+				tci.lParam = i;
+				TabCtrl_InsertItem(hTabDir, subIdx++, &tci);
+				if (parseFuns[i]) {
+					parseFuns[i](fileBuffer, hDlgDir[i]);
+				}
 			}
 		}
 	}
@@ -82,7 +103,7 @@ namespace peDlg {
 		PVOID fileBuffer = 0;
 		long len = openPE(pFilePath, &fileBuffer);
 		if (!len) {
-			winLog(_T("open pe error: %s", pFilePath));
+			qLog("open pe error: %s", pFilePath);
 			return;
 		}
 		TCHAR cont[0x10] = {};
@@ -91,48 +112,50 @@ namespace peDlg {
 		PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 
 		//---base
+		_sntprintf(cont, 0x10, _T("%04X"), hDos->e_magic);
+		SetDlgItemText(hDlgRoot, IDC_EDIT47, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hDos->e_lfanew);
-		SetDlgItemText(hDlg, IDC_EDIT1, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT1, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->Signature);
-		SetDlgItemText(hDlg, IDC_EDIT2, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT2, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->FileHeader.Machine);
-		SetDlgItemText(hDlg, IDC_EDIT3, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT3, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->FileHeader.NumberOfSections);
-		SetDlgItemText(hDlg, IDC_EDIT4, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT4, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->FileHeader.SizeOfOptionalHeader);
-		SetDlgItemText(hDlg, IDC_EDIT5, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT5, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->FileHeader.Characteristics);
-		SetDlgItemText(hDlg, IDC_EDIT6, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT6, cont);
 
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->OptionalHeader.Magic);
-		SetDlgItemText(hDlg, IDC_EDIT7, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT7, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.AddressOfEntryPoint);
-		SetDlgItemText(hDlg, IDC_EDIT8, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT8, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.ImageBase);
-		SetDlgItemText(hDlg, IDC_EDIT9, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT9, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.SectionAlignment);
-		SetDlgItemText(hDlg, IDC_EDIT10, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT10, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.FileAlignment);
-		SetDlgItemText(hDlg, IDC_EDIT11, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT11, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.SizeOfImage);
-		SetDlgItemText(hDlg, IDC_EDIT12, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT12, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.SizeOfHeaders);
-		SetDlgItemText(hDlg, IDC_EDIT13, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT13, cont);
 		_sntprintf(cont, 0x10, _T("%p"), hNt->OptionalHeader.CheckSum);
-		SetDlgItemText(hDlg, IDC_EDIT14, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT14, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->OptionalHeader.Subsystem);
-		SetDlgItemText(hDlg, IDC_EDIT15, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT15, cont);
 		_sntprintf(cont, 0x10, _T("%04X"), hNt->OptionalHeader.DllCharacteristics);
-		SetDlgItemText(hDlg, IDC_EDIT16, cont);
+		SetDlgItemText(hDlgRoot, IDC_EDIT16, cont);
 
 		//IDC_EDIT 17~46
 		for (int i = 0; i < 15; i++) {
 			int fstEditId = IDC_EDIT17 + i * 2;
 			PIMAGE_DATA_DIRECTORY pData = &hNt->OptionalHeader.DataDirectory[i];
 			_sntprintf(cont, 0x10, _T("%p"), pData->VirtualAddress);
-			SetDlgItemText(hDlg, fstEditId, cont);
+			SetDlgItemText(hDlgRoot, fstEditId, cont);
 			_sntprintf(cont, 0x10, _T("%p"), pData->Size);
-			SetDlgItemText(hDlg, fstEditId + 1, cont);
+			SetDlgItemText(hDlgRoot, fstEditId + 1, cont);
 		}
 
 		//---section
@@ -182,13 +205,18 @@ namespace peDlg {
 		free(fileBuffer);
 	}
 
-	//void onSelChanged_Tab() {
-	//	for (int i = 0; i < 2; i++) {
-	//		ShowWindow(hSubDlg[i], SW_HIDE);
-	//	}
-	//	int pageIdx = TabCtrl_GetCurFocus(hTab);
-	//	ShowWindow(hSubDlg[pageIdx], SW_SHOW);
-	//}
+	void onSelChanged_DirPage() {
+		for (int i = 0, len = ARRAYSIZE(hDlgDir); i < len; i++) {
+			ShowWindow(hDlgDir[i], SW_HIDE);
+		}
+		int tabIdx = TabCtrl_GetCurFocus(hTabDir);
+		TCITEM tci = {};
+		tci.mask = TCIF_PARAM;
+		TabCtrl_GetItem(hTabDir, tabIdx, &tci);
+		int idx = tci.lParam;
+		ShowWindow(hDlgDir[idx], SW_SHOW);
+		//qLog("idx: %d wnd: %d", idx, hDlgDir[idx]);
+	}
 
 	void onClick_ChooseFile() {
 		OPENFILENAME file = {};
@@ -200,8 +228,8 @@ namespace peDlg {
 		file.nFilterIndex = 1;
 		file.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 		if (GetOpenFileName(&file)) {
-			HWND hEC = GetDlgItem(hDlg, IDC_FILE_PATH);
-			SetWindowText(hEC, path);
+			HWND hEd = GetDlgItem(hDlgRoot, IDC_FILE_PATH);
+			SetWindowText(hEd, path);
 			_tcscpy(pFilePath, path);
 			setInfo();
 
@@ -217,25 +245,24 @@ namespace peDlg {
 	INT_PTR CALLBACK peDlgProc(HWND aDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		switch (uMsg) {
 			case WM_INITDIALOG: {
-				hDlg = aDlg;
+				hDlgRoot = aDlg;
 				initComp();
-				//onSelChanged_Tab();
 				return TRUE;
 			}
 			case WM_CLOSE: {
 				EndDialog(aDlg, 0);
 				return TRUE;
 			}
-			/*case WM_NOTIFY: {
+			case WM_NOTIFY: {
 				NMHDR* pNM = (NMHDR*)lParam;
-				if (wParam == IDC_TAB) {
+				if (wParam == IDC_TAB_DIR) {
 					if (pNM->code == TCN_SELCHANGE) {
-						onSelChanged_Tab();
+						onSelChanged_DirPage();
 						return TRUE;
 					}
 				}
 				break;
-			}*/
+			}
 			case WM_COMMAND: {
 				switch (wParam) {
 					case IDC_BTN_FILE:

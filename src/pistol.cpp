@@ -27,8 +27,8 @@ namespace pistol {
 
 	int CALLBACK compareFunc(LPARAM p1, LPARAM p2, LPARAM data) {
 		SortData* pData = (SortData*)data;
-		//winLog(_T("%d %d"), pData->asc, pData->colId);
-		//winLog(_T("%s %s"), cont1, cont2);
+		//qLog("%d %d", pData->asc, pData->colId);
+		//qLog("%s %s", cont1, cont2);
 
 		TCHAR cont1[MAX_PATH] = {0};
 		ListView_GetItemText(hListProc, p1, pData->colId, cont1, MAX_PATH);

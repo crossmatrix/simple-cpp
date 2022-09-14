@@ -18,12 +18,12 @@ void __cdecl DbgLogW(const WCHAR * format, ...);
 
 #ifdef _DEBUG
 #ifdef UNICODE
-#define winLog DbgLogW
+#define qLog(str,...) DbgLogW(_T(str),__VA_ARGS__)
 #else
-#define winLog DbgLogA
+#define qLog(str,...) DbgLogA(_T(str),__VA_ARGS__)
 #endif
 #else
-#define winLog
+#define qLog
 #endif
 
 #endif // ! WIN32TOOL_H_
