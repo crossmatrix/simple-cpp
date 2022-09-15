@@ -15,7 +15,7 @@ do
 		echo $output
 	else
 		echo "-----3"
-		#break
+		break
 	fi
 done
 
