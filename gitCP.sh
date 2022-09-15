@@ -9,7 +9,7 @@ echo $output
 
 while :
 do
-	if [[ $output == "fatal"* ]]; then
+	if [[ $output == "" ]]; then
 		output=$(git push)
 		echo "-----2"
 		echo $output
