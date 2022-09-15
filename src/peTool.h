@@ -21,6 +21,7 @@ DWORD foa2rva(PVOID fileBuffer, DWORD foa);
 DWORD rva2foa(PVOID fileBuffer, DWORD rva);
 DWORD rva2fa(PVOID fileBuffer, DWORD rva);
 DWORD fa2rva(PVOID fileBuffer, DWORD fa);
+bool isZeroBlock(PVOID pos, DWORD size);
 PIMAGE_SECTION_HEADER getSecByRva(PVOID fileBuffer, DWORD rva);
 PIMAGE_SECTION_HEADER getSecByFoa(PVOID fileBuffer, DWORD foa);
 bool findEmpty(PVOID fileBuffer, DWORD chunkSize, int secIdx, bool fromEnd, OUT DWORD* targPos);
