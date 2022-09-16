@@ -216,50 +216,59 @@ namespace peDlg {
 				item.iSubItem = 3;
 				ListView_SetItem(hListTop, &item);
 			}
-
-			//PWORD fstItem = PWORD((DWORD)pData + typeSize);
-			//for (int i = 0; i < itemNum; i++) {
-			//	//4(IMAGE_REL_BASED_HIGHLOW)|12
-			//	WORD item = fstItem[i];
-			//	WORD value = item << 4;
-			//	value = value >> 4;
-			//	DWORD rva = pData->VirtualAddress + value;
-			//	print("\t[%d] org item: %04x, item value: %04x, rva: %p", i, item, value, rva);
-			//}
 			pData = (PIMAGE_BASE_RELOCATION)((DWORD)pData + pData->SizeOfBlock);
 		}
 	}
 
 	void bot_reloc(HWND hListBot, DWORD idx) {
+		//qLog("%p %d", hListBot, idx);
 		TCHAR cont[0x10] = {};
 		ListView_DeleteAllItems(hListBot);
 		LV_ITEM item = {};
 		item.mask = LVIF_TEXT;
 
-		//qLog("%p %d", hwnd, idx);
+		PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
+		PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
+		DWORD typeSize = sizeof(IMAGE_BASE_RELOCATION);
 
-		item.iItem = 0;
-		{
-			//_sntprintf(cont, 0x10, _T("%p"), pData->VirtualAddress);
-			item.pszText = (LPWSTR)L"aa";
-			item.iSubItem = 0;
-			ListView_InsertItem(hListBot, &item);
-
-			item.pszText = (LPWSTR)L"bb";
-			item.iSubItem = 1;
-			ListView_SetItem(hListBot, &item);
+		int order = 0;
+		while (!isZeroBlock((PVOID)pData, typeSize)) {
+			if (order == idx) {
+				break;
+			}
+			order++;
+			pData = (PIMAGE_BASE_RELOCATION)((DWORD)pData + pData->SizeOfBlock);
 		}
+		
+		int itemDataNum = (pData->SizeOfBlock - typeSize) / 2;
+		PWORD fstItemData = PWORD((DWORD)pData + typeSize);
+		for (int i = 0; i < itemDataNum; i++) {
+			//4(IMAGE_REL_BASED_HIGHLOW)|12
+			WORD itemData = fstItemData[i];
+			WORD value = itemData << 4;
+			value = value >> 4;
+			DWORD rva = pData->VirtualAddress + value;
+			DWORD type = itemData >> 12;
+			//print("\t[%d] org item: %04x, item value: %04x, rva: %p", i, itemData, value, rva);
 
-		item.iItem = 1;
-		{
-			//_sntprintf(cont, 0x10, _T("%p"), pData->VirtualAddress);
-			item.pszText = (LPWSTR)L"1";
-			item.iSubItem = 0;
-			ListView_InsertItem(hListBot, &item);
+			item.iItem = i;
+			{
+				_sntprintf(cont, 0x10, _T("%04X"), itemData);
+				item.pszText = cont;
+				item.iSubItem = 0;
+				ListView_InsertItem(hListBot, &item);
 
-			item.pszText = (LPWSTR)L"2";
-			item.iSubItem = 1;
-			ListView_SetItem(hListBot, &item);
+				_sntprintf(cont, 0x10, _T("%p"), rva);
+				item.pszText = cont;
+				item.iSubItem = 1;
+				ListView_SetItem(hListBot, &item);
+
+				_sntprintf(cont, 0x10, _T("%d"), type);
+				item.pszText = cont;
+				item.iSubItem = 2;
+				ListView_SetItem(hListBot, &item);
+			}
 		}
 	}
 
