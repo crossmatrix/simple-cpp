@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <winnt.h>
 #include <tchar.h>
+#include <functional>
 
 #define print(str,...) printf(str##"\n",__VA_ARGS__)
 #define NT_HEADER(buffer) ((PIMAGE_NT_HEADERS)((DWORD)buffer + ((PIMAGE_DOS_HEADER)buffer)->e_lfanew))
@@ -32,6 +33,10 @@ DWORD getFuncByName(PVOID fileBuffer, PCSTR name);
 void showData_5_Reloc(PVOID fileBuffer);
 void showData_1_11_Import_Bound(PVOID fileBuffer);
 DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT PVOID* newBuffer);
+void resourceInfo(PVOID fileBuffer, DWORD dataRva,
+	void(*nameFunc)(PIMAGE_RESOURCE_DIRECTORY, PIMAGE_RESOURCE_DIRECTORY_ENTRY, int, int),
+	std::function<void(PIMAGE_RESOURCE_DATA_ENTRY, int, PVOID)> dataFunc
+);
 void showData_2_Resource(PVOID fileBuffer);
 
 #endif

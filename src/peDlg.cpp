@@ -443,9 +443,9 @@ namespace peDlg {
 		if (!initHead) {
 			initHead = true;
 			hListTop = GetDlgItem(hwnd, IDC_LV_TOP);
-			int topWidth[] = {120};
+			int topWidth[] = {120, 120};
 			PCTCH topName[] = {
-				_T("FT_RVA")
+				_T("FT_RVA"), _T("Num")
 			};
 			initListView(hListTop, topWidth, topName, ARRAYSIZE(topWidth));
 			hListBottom = GetDlgItem(hwnd, IDC_LV_BOTTOM);
@@ -476,10 +476,22 @@ namespace peDlg {
 					if (num > 0) {
 						fa += 4;
 					}
+					
 					_sntprintf(cont, 0x10, _T("%p"), fa2rva(fileBuffer, fa));
 					item.pszText = cont;
 					item.iSubItem = 0;
 					ListView_InsertItem(hListTop, &item);
+
+					int funcNum = 0;
+					while (*(PDWORD)fa != 0) {
+						funcNum++;
+						fa += 4;
+					}
+
+					_sntprintf(cont, 0x10, _T("%d"), funcNum);
+					item.pszText = cont;
+					item.iSubItem = 1;
+					ListView_SetItem(hListTop, &item);
 				}
 				num++;
 			}
@@ -507,17 +519,19 @@ namespace peDlg {
 				if (num > 0) {
 					fa += 4;
 				}
-
-				int order = 0;
-				while (*(PDWORD)fa != 0) {
-					item.iItem = order++;
-					{
-						_sntprintf(cont, 0x10, _T("%p"), *(PDWORD)fa);
-						item.pszText = cont;
-						item.iSubItem = 0;
-						ListView_InsertItem(hListBot, &item);
+				if (idx == num) {
+					int order = 0;
+					while (*(PDWORD)fa != 0) {
+						item.iItem = order++;
+						{
+							_sntprintf(cont, 0x10, _T("%p"), *(PDWORD)fa);
+							item.pszText = cont;
+							item.iSubItem = 0;
+							ListView_InsertItem(hListBot, &item);
+						}
+						fa += 4;
 					}
-					fa += 4;
+					break;
 				}
 				num++;
 			}
@@ -531,8 +545,108 @@ namespace peDlg {
 	}
 
 	//-----res-----
+	HWND hResListTop = NULL;
+	int resListRow = 0;
+
+	void checkRes_Name(PIMAGE_RESOURCE_DIRECTORY pData, PIMAGE_RESOURCE_DIRECTORY_ENTRY pEntry, int layer, int idx) {
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+		TCHAR cont[MAX_PATH] = {};
+
+		if (pEntry[idx].NameIsString) {
+			PIMAGE_RESOURCE_DIR_STRING_U pResStr = (PIMAGE_RESOURCE_DIR_STRING_U)((DWORD)pData + pEntry[idx].NameOffset);
+			memcpy(cont, pResStr->NameString, pResStr->Length * sizeof(WCHAR));
+		} else {
+			WORD resId = pEntry[idx].Id;
+			if (resId < 17) {
+				if (layer == 0) {
+					_sntprintf(cont, MAX_PATH, _T("[i] %d"), resId);
+				} else {
+					_sntprintf(cont, MAX_PATH, _T("%d"), resId);
+				}
+			} else {
+				if (layer == 0) {
+					_sntprintf(cont, MAX_PATH, _T("[c] %d"), resId);
+				} else {
+					_sntprintf(cont, MAX_PATH, _T("%d"), resId);
+				}
+			}
+		}
+
+		item.iItem = resListRow++;
+		{
+			if (layer == 0) {
+				item.pszText = cont;
+				item.iSubItem = 0;
+				ListView_InsertItem(hResListTop, &item);
+			} else {
+				item.pszText = (LPWSTR)L"";
+				item.iSubItem = 0;
+				ListView_InsertItem(hResListTop, &item);
+
+				for (int i = 1; i < layer; i++) {
+					item.pszText = (LPWSTR)L"";
+					item.iSubItem = i;
+					ListView_SetItem(hResListTop, &item);
+				}
+
+				item.pszText = cont;
+				item.iSubItem = layer;
+				ListView_SetItem(hResListTop, &item);
+			}
+		}
+	}
+
+	void checkRes_Data(PIMAGE_RESOURCE_DATA_ENTRY pResData, int layer, PVOID fileBuffer) {
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+		TCHAR cont[0x10] = {};
+
+		item.iItem = resListRow++;
+		{
+			item.pszText = (LPWSTR)L"";
+			item.iSubItem = 0;
+			ListView_InsertItem(hResListTop, &item);
+
+			for (int i = 1; i < layer; i++) {
+				item.pszText = (LPWSTR)L"";
+				item.iSubItem = i;
+				ListView_SetItem(hResListTop, &item);
+			}
+
+			_sntprintf(cont, 0x10, _T("%p"), pResData->OffsetToData);
+			item.pszText = cont;
+			item.iSubItem = layer;
+			ListView_SetItem(hResListTop, &item);
+
+			_sntprintf(cont, 0x10, _T("%p"), pResData->Size);
+			item.pszText = cont;
+			item.iSubItem = layer + 1;
+			ListView_SetItem(hResListTop, &item);
+
+			_sntprintf(cont, 0x10, _T("%p"), pResData->CodePage);
+			item.pszText = cont;
+			item.iSubItem = layer + 2;
+			ListView_SetItem(hResListTop, &item);
+		}
+	}
+
 	void parse_res(HWND hwnd, PIMAGE_NT_HEADERS hNt) {
 		static BOOL initHead = false;
+		if (!initHead) {
+			initHead = true;
+			hResListTop = GetDlgItem(hwnd, IDC_LV_TOP);
+			int topWidth[] = {60, 100, 50, 100, 100, 100};
+			PCTCH topName[] = {
+				_T("ID1"), _T("ID2"), _T("ID3"), _T("RVA"), _T("Size"), _T("CodePage")
+			};
+			initListView(hResListTop, topWidth, topName, ARRAYSIZE(topWidth));
+		}
+
+		ListView_DeleteAllItems(hResListTop);
+		resListRow = 0;
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress;
+		resourceInfo(fileBuffer, dataRva, checkRes_Name, checkRes_Data);
 	}
 
 	void initComp() {

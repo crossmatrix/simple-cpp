@@ -1,5 +1,4 @@
 #include "peTool.h"
-#include <functional>
 
 void* malloc_s(int size) {
 	void* mem = malloc(size);
