@@ -275,16 +275,254 @@ namespace peDlg {
 	//-----import-----
 	void parse_import(HWND hwnd, PIMAGE_NT_HEADERS hNt) {
 		static BOOL initHead = false;
+		static HWND hListTop = NULL;
+		static HWND hListBottom = NULL;
+		if (!initHead) {
+			initHead = true;
+			hListTop = GetDlgItem(hwnd, IDC_LV_TOP);
+			int topWidth[] = {200, 60, 120, 120, 120};
+			PCTCH topName[] = {
+				_T("ModuleName"), _T("Num"), _T("OFT_RVA"), _T("FT_RVA"), _T("TimeDateStamp")
+			};
+			initListView(hListTop, topWidth, topName, ARRAYSIZE(topWidth));
+			hListBottom = GetDlgItem(hwnd, IDC_LV_BOTTOM);
+			int botWidth[] = {300, 120, 120};
+			PCTCH botName[] = {
+				_T("Name"), _T("OFT"), _T("FT")
+			};
+			initListView(hListBottom, botWidth, botName, ARRAYSIZE(botWidth));
+		}
+
+		TCHAR cont[0x10] = {};
+		ListView_DeleteAllItems(hListTop);
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+		PIMAGE_IMPORT_DESCRIPTOR pData = (PIMAGE_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
+		DWORD typeSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
+		
+		int order = 0;
+		while (!isZeroBlock(pData, typeSize)) {
+			PSTR dllName = (PSTR)rva2fa(fileBuffer, pData->Name);
+			PDWORD pOFT = (PDWORD)rva2fa(fileBuffer, pData->OriginalFirstThunk);
+			PDWORD pFT = (PDWORD)rva2fa(fileBuffer, pData->FirstThunk);
+			DWORD funcNum = 0;
+			while (*pOFT != 0) {
+				pOFT++;
+				funcNum++;
+			}
+			item.iItem = order++;
+			{
+				item.pszText = m2w(dllName);
+				item.iSubItem = 0;
+				ListView_InsertItem(hListTop, &item);
+
+				_sntprintf(cont, 0x10, _T("%d"), funcNum);
+				item.pszText = cont;
+				item.iSubItem = 1;
+				ListView_SetItem(hListTop, &item);
+
+				_sntprintf(cont, 0x10, _T("%p"), pData->OriginalFirstThunk);
+				item.pszText = cont;
+				item.iSubItem = 2;
+				ListView_SetItem(hListTop, &item);
+
+				_sntprintf(cont, 0x10, _T("%p"), pData->FirstThunk);
+				item.pszText = cont;
+				item.iSubItem = 3;
+				ListView_SetItem(hListTop, &item);
+
+				_sntprintf(cont, 0x10, _T("%p"), pData->TimeDateStamp);
+				item.pszText = cont;
+				item.iSubItem = 4;
+				ListView_SetItem(hListTop, &item);
+			}
+			pData++;
+		}
+	}
+
+	void bot_import(HWND hListBot, DWORD idx) {
+		TCHAR cont[MAX_PATH] = {};
+		ListView_DeleteAllItems(hListBot);
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+		PIMAGE_IMPORT_DESCRIPTOR pData = (PIMAGE_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
+		DWORD typeSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
+
+		pData = pData + idx;
+		PDWORD pOFT = (PDWORD)rva2fa(fileBuffer, pData->OriginalFirstThunk);
+		PDWORD pFT = (PDWORD)rva2fa(fileBuffer, pData->FirstThunk);
+		int order = 0;
+		while (*pOFT != 0) {
+			if ((*pOFT & 0x80000000) == 0x80000000) {
+				DWORD funcOrdinal = *pOFT & 0x7fffffff;
+				_sntprintf(cont, MAX_PATH, _T("Ordinal:%p"), funcOrdinal);
+			} else {
+				PIMAGE_IMPORT_BY_NAME pName = (PIMAGE_IMPORT_BY_NAME)rva2fa(fileBuffer, *pOFT);
+				_sntprintf(cont, MAX_PATH, _T("%s"), m2w(pName->Name));
+			}
+
+			item.iItem = order++;
+			{
+				item.pszText = cont;
+				item.iSubItem = 0;
+				ListView_InsertItem(hListBot, &item);
+
+				_sntprintf(cont, MAX_PATH, _T("%p"), *pOFT);
+				item.pszText = cont;
+				item.iSubItem = 1;
+				ListView_SetItem(hListBot, &item);
+
+				_sntprintf(cont, MAX_PATH, _T("%p"), *pFT);
+				item.pszText = cont;
+				item.iSubItem = 2;
+				ListView_SetItem(hListBot, &item);
+			}
+
+			pOFT++;
+			pFT++;
+		}
 	}
 
 	//-----bound-----
 	void parse_bound(HWND hwnd, PIMAGE_NT_HEADERS hNt) {
 		static BOOL initHead = false;
+		static HWND hListTop = NULL;
+		if (!initHead) {
+			initHead = true;
+			hListTop = GetDlgItem(hwnd, IDC_LV_TOP);
+			int topWidth[] = {200, 120, 120};
+			PCTCH topName[] = {
+				_T("ModuleName"), _T("Name_FOA"), _T("TimeDateStamp")
+			};
+			initListView(hListTop, topWidth, topName, ARRAYSIZE(topWidth));
+		}
+
+		TCHAR cont[0x10] = {};
+		ListView_DeleteAllItems(hListTop);
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT].VirtualAddress;
+		PIMAGE_BOUND_IMPORT_DESCRIPTOR pData = (PIMAGE_BOUND_IMPORT_DESCRIPTOR)rva2fa(fileBuffer, dataRva);
+		DWORD typeSize = sizeof(IMAGE_BOUND_IMPORT_DESCRIPTOR);
+		DWORD fstBound = (DWORD)pData;
+
+		int order = 0;
+		while (!isZeroBlock(pData, typeSize)) {
+			PSTR name = (PSTR)(fstBound + pData->OffsetModuleName);
+			item.iItem = order++;
+			{
+				item.pszText = m2w(name);
+				item.iSubItem = 0;
+				ListView_InsertItem(hListTop, &item);
+
+				_sntprintf(cont, 0x10, _T("%p"), (DWORD)name - (DWORD)fileBuffer);
+				item.pszText = cont;
+				item.iSubItem = 1;
+				ListView_SetItem(hListTop, &item);
+
+				_sntprintf(cont, 0x10, _T("%p"), pData->TimeDateStamp);
+				item.pszText = cont;
+				item.iSubItem = 2;
+				ListView_SetItem(hListTop, &item);
+			}
+			pData++;
+		}
 	}
 
 	//-----iat-----
 	void parse_iat(HWND hwnd, PIMAGE_NT_HEADERS hNt) {
 		static BOOL initHead = false;
+		static HWND hListTop = NULL;
+		static HWND hListBottom = NULL;
+		if (!initHead) {
+			initHead = true;
+			hListTop = GetDlgItem(hwnd, IDC_LV_TOP);
+			int topWidth[] = {120};
+			PCTCH topName[] = {
+				_T("FT_RVA")
+			};
+			initListView(hListTop, topWidth, topName, ARRAYSIZE(topWidth));
+			hListBottom = GetDlgItem(hwnd, IDC_LV_BOTTOM);
+			int botWidth[] = {120};
+			PCTCH botName[] = {
+				_T("FT")
+			};
+			initListView(hListBottom, botWidth, botName, ARRAYSIZE(botWidth));
+		}
+
+		TCHAR cont[0x10] = {};
+		ListView_DeleteAllItems(hListTop);
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress;
+		PDWORD pFT = (PDWORD)rva2fa(fileBuffer, dataRva);
+
+		int num = 0;
+		while (true) {
+			if (*pFT == 0 && *(pFT + 1) == 0) {
+				break;
+			}
+			if (*pFT == 0 || num == 0) {
+				item.iItem = num;
+				{
+					DWORD fa = (DWORD)pFT;
+					if (num > 0) {
+						fa += 4;
+					}
+					_sntprintf(cont, 0x10, _T("%p"), fa2rva(fileBuffer, fa));
+					item.pszText = cont;
+					item.iSubItem = 0;
+					ListView_InsertItem(hListTop, &item);
+				}
+				num++;
+			}
+			pFT++;
+		}
+	}
+
+	void bot_iat(HWND hListBot, DWORD idx) {
+		TCHAR cont[MAX_PATH] = {};
+		ListView_DeleteAllItems(hListBot);
+		LV_ITEM item = {};
+		item.mask = LVIF_TEXT;
+
+		PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+		DWORD dataRva = hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress;
+		PDWORD pFT = (PDWORD)rva2fa(fileBuffer, dataRva);
+
+		int num = 0;
+		while (true) {
+			if (*pFT == 0 && *(pFT + 1) == 0) {
+				break;
+			}
+			if (*pFT == 0 || num == 0) {
+				DWORD fa = (DWORD)pFT;
+				if (num > 0) {
+					fa += 4;
+				}
+
+				int order = 0;
+				while (*(PDWORD)fa != 0) {
+					item.iItem = order++;
+					{
+						_sntprintf(cont, 0x10, _T("%p"), *(PDWORD)fa);
+						item.pszText = cont;
+						item.iSubItem = 0;
+						ListView_InsertItem(hListBot, &item);
+					}
+					fa += 4;
+				}
+				num++;
+			}
+			pFT++;
+		}
 	}
 
 	//-----delay-----
@@ -316,6 +554,8 @@ namespace peDlg {
 		parseFuncs[IMAGE_DIRECTORY_ENTRY_RESOURCE] = parse_res;
 
 		botDealFuncs[IMAGE_DIRECTORY_ENTRY_BASERELOC] = bot_reloc;
+		botDealFuncs[IMAGE_DIRECTORY_ENTRY_IMPORT] = bot_import;
+		botDealFuncs[IMAGE_DIRECTORY_ENTRY_IAT] = bot_iat;
 
 		RECT rect = {};
 		GetWindowRect(hTabDir, &rect);
