@@ -6,6 +6,12 @@
 #define IDC_EDIT_COUNT                  1005
 #define IDC_BUTTON_START                1006
 #define IDI_ICON                        1007
+#define IDC_BUTTON_SUSPEND              1007
+#define IDC_BUTTON_RESUME               1008
+#define IDC_BUTTON_EXIT                 1009
+#define IDC_BUTTON_TERMINATE            1010
+#define IDC_BUTTON_TERMINATE2           1011
+#define IDC_BUTTON_CONTEXT              1011
 #define IDC_BTN_SHOW                    10001
 #define IDC_EDIT1                       10004
 #define IDC_EDIT2                       10005

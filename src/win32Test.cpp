@@ -216,13 +216,42 @@ namespace win32Test {
 		DialogBoxParam(hInstance, PTCHAR(IDD_DIALOG), NULL, DlgProc, (LPARAM)hInstance);
 	}
 
-	HWND hDlg = NULL;
+	class Car {
+	public:
+		float price;
+		TCHAR name[0x10];
 
+		Car(float price, PCWCH name) {
+			this->price = price;
+			_tcscpy(this->name, name);
+			qLog("ctor %s", this->name);
+		}
+
+		~Car() {
+			qLog("dtor %s", this->name);
+		}
+
+		void run() {
+			qLog("%s %.2f is running", this->name, this->price);
+		}
+	};
+
+	HWND hDlg = NULL;
+	HANDLE hThread = NULL;
+	BOOL isQuit = FALSE;
+	Car* c = NULL;
 	DWORD WINAPI SelfSub(LPVOID param){
+		c = new Car(100.1, _T("RedCar"));
+		c->run();
+		//when thread quit, c will not auto release!
+
 		WCHAR cont[0x10] = {};
 		GetDlgItemText(hDlg, IDC_EDIT_COUNT, cont, 0x10);
 		int val = _wtoi(cont);
 		while (val > 0) {
+			if (isQuit) {
+				ExitThread(1);
+			}
 			val -= (int)param;
 			wsprintf(cont, L"%d", val);
 			SetDlgItemText(hDlg, IDC_EDIT_COUNT, cont);
@@ -246,7 +275,99 @@ namespace win32Test {
 			case WM_COMMAND: {
 				switch (wParam) {
 					case IDC_BUTTON_START: {
-						HANDLE hThread = CreateThread(0, 0, SelfSub, (LPVOID)2, 0, 0);
+						hThread = CreateThread(0, 0, SelfSub, (LPVOID)2, 0, 0);
+						/*if (hThread) {
+							CloseHandle(hThread);
+						}*/
+						return TRUE;
+					}
+					case IDC_BUTTON_SUSPEND: {
+						SuspendThread(hThread);
+						return TRUE;
+					}
+					case IDC_BUTTON_RESUME: {
+						ResumeThread(hThread);
+						return TRUE;
+					}
+					case IDC_BUTTON_EXIT: {
+						isQuit = TRUE;
+						return TRUE;
+					}
+					case IDC_BUTTON_TERMINATE: {
+						TerminateThread(hThread, 2);
+						return TRUE;
+					}
+					case IDC_BTN_SHOW: {
+						c->run();
+						return TRUE;
+					}
+					case IDC_BUTTON_CONTEXT: {
+						SuspendThread(hThread);
+						CONTEXT context = {};
+						context.ContextFlags = CONTEXT_ALL;
+						GetThreadContext(hThread, &context);
+						context.Eip = 0x00410000;
+						SetThreadContext(hThread, &context);
+						ResumeThread(hThread);
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test4(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc3);
+		//GetExitCodeThread();
+	}
+
+	bool valid = true;
+	DWORD WINAPI SelfAdd(LPVOID param) {
+		while (!valid) {
+		}
+		valid = false;
+		for (int i = 0; i < (int)param; i++) {
+			WCHAR cont[0x10] = {};
+			GetDlgItemText(hDlg, IDC_EDIT_COUNT, cont, 0x10);
+			int val = _wtoi(cont);
+			val++;
+			wsprintf(cont, L"%d", val);
+			SetDlgItemText(hDlg, IDC_EDIT_COUNT, cont);
+			//Sleep(500);
+		}
+		valid = true;
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc4(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		//qLog("%x", uMsg);
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				hDlg = hwndDlg;
+				HWND hEdit = GetDlgItem(hwndDlg, IDC_EDIT_COUNT);
+				SetWindowText(hEdit, (LPCWSTR)L"0");
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BUTTON_START: {
+						HANDLE hThread = CreateThread(0, 0, SelfAdd, (LPVOID)10000, 0, 0);
+						if (hThread) {
+							CloseHandle(hThread);
+						}
+						return TRUE;
+					}
+					case IDC_BUTTON_SUSPEND: {
+						HANDLE hThread = CreateThread(0, 0, SelfAdd, (LPVOID)10000, 0, 0);
 						if (hThread) {
 							CloseHandle(hThread);
 						}
@@ -263,8 +384,8 @@ namespace win32Test {
 		return FALSE;
 	}
 
-	void test4(HINSTANCE hInstance) {
-		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc3);
+	void test5(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc4);
 	}
 }
 
@@ -274,6 +395,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//test1(hInstance, lpCmdLine);
 	//test2(hInstance);
 	//test3(hInstance);
-	test4(hInstance);
+	//test4(hInstance);
+	test5(hInstance);
 	return 0;
 }
