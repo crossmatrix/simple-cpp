@@ -215,13 +215,65 @@ namespace win32Test {
 		//INT_PTR ptr = DialogBox(hInstance, PTCHAR(IDD_DIALOG), NULL, DlgProc);
 		DialogBoxParam(hInstance, PTCHAR(IDD_DIALOG), NULL, DlgProc, (LPARAM)hInstance);
 	}
+
+	HWND hDlg = NULL;
+
+	DWORD WINAPI SelfSub(LPVOID param){
+		WCHAR cont[0x10] = {};
+		GetDlgItemText(hDlg, IDC_EDIT_COUNT, cont, 0x10);
+		int val = _wtoi(cont);
+		while (val > 0) {
+			val -= (int)param;
+			wsprintf(cont, L"%d", val);
+			SetDlgItemText(hDlg, IDC_EDIT_COUNT, cont);
+			Sleep(500);
+		}
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc3(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		//qLog("%x", uMsg);
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				hDlg = hwndDlg;
+				HWND hEdit = GetDlgItem(hwndDlg, IDC_EDIT_COUNT);
+				SetWindowText(hEdit, (LPCWSTR)L"100");
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BUTTON_START: {
+						HANDLE hThread = CreateThread(0, 0, SelfSub, (LPVOID)2, 0, 0);
+						if (hThread) {
+							CloseHandle(hThread);
+						}
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test4(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc3);
+	}
 }
 
 using namespace win32Test;
 
-int WINAPI WinMain_test(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	//test1(hInstance, lpCmdLine);
 	//test2(hInstance);
-	test3(hInstance);
+	//test3(hInstance);
+	test4(hInstance);
 	return 0;
 }

@@ -392,11 +392,27 @@ namespace peTest {
 		free(path);
 		free(fileBuffer);
 	}
+
+	void test16() {
+		char* path = res("notepad.exe");
+		PVOID fileBuffer = 0;
+		openPE(path, &fileBuffer);
+
+		showPE(path);
+
+		//showData_1_11_Import_Bound(fileBuffer);
+		//IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG
+		//18a8 40
+		print("%d", sizeof(IMAGE_LOAD_CONFIG_DIRECTORY));
+
+		free(path);
+		free(fileBuffer);
+	}
 }
 
 using namespace peTest;
 
-int main() {
-	test14();
+int main_review() {
+	test16();
 	return 0;
 }
