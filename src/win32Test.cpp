@@ -328,7 +328,7 @@ namespace win32Test {
 	}
 
 	bool valid = true;
-	DWORD WINAPI SelfAdd(LPVOID param) {
+	DWORD WINAPI Test_Cust_Lock(LPVOID param) {
 		while (!valid) {
 		}
 		valid = false;
@@ -345,29 +345,74 @@ namespace win32Test {
 		return 0;
 	}
 
+	CRITICAL_SECTION crtSec;
+	DWORD WINAPI Test_Crt_Lock(LPVOID param) {
+		for (int i = 0; i < (int)param; i++) {
+			EnterCriticalSection(&crtSec);
+			WCHAR cont[0x10] = {};
+			GetDlgItemText(hDlg, IDC_EDIT_COUNT, cont, 0x10);
+			int val = _wtoi(cont);
+			val++;
+			wsprintf(cont, L"%d", val);
+			SetDlgItemText(hDlg, IDC_EDIT_COUNT, cont);
+			//Sleep(500);
+			LeaveCriticalSection(&crtSec);
+		}
+		return 0;
+	}
+
+	CRITICAL_SECTION crtSec2;
+	DWORD WINAPI Test_CrtDeadLock1(LPVOID param) {
+		qLog("t1 ready s1");
+		EnterCriticalSection(&crtSec);
+		Sleep(1000);
+		qLog("t1 ready s2");
+		EnterCriticalSection(&crtSec2);
+		qLog("t1 has s1 s2, no lock");
+		LeaveCriticalSection(&crtSec2);
+		LeaveCriticalSection(&crtSec);
+		return 0;
+	}
+
+	DWORD WINAPI Test_CrtDeadLock2(LPVOID param) {
+		qLog("t2 ready s2");
+		EnterCriticalSection(&crtSec2);
+		Sleep(1000);
+		qLog("t2 ready s1");
+		EnterCriticalSection(&crtSec);
+		qLog("t2 has s1 s2, no lock");
+		LeaveCriticalSection(&crtSec);
+		LeaveCriticalSection(&crtSec2);
+		return 0;
+	}
+
 	INT_PTR CALLBACK DlgProc4(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		//qLog("%x", uMsg);
 		switch (uMsg) {
 			case WM_CLOSE: {
 				EndDialog(hwndDlg, 0);
+				DeleteCriticalSection(&crtSec);
+				DeleteCriticalSection(&crtSec2);
 				return TRUE;
 			}
 			case WM_INITDIALOG: {
 				hDlg = hwndDlg;
 				HWND hEdit = GetDlgItem(hwndDlg, IDC_EDIT_COUNT);
 				SetWindowText(hEdit, (LPCWSTR)L"0");
+				InitializeCriticalSection(&crtSec);
+				InitializeCriticalSection(&crtSec2);
 			}
 			case WM_COMMAND: {
 				switch (wParam) {
 					case IDC_BUTTON_START: {
-						HANDLE hThread = CreateThread(0, 0, SelfAdd, (LPVOID)10000, 0, 0);
+						HANDLE hThread = CreateThread(0, 0, Test_CrtDeadLock1, (LPVOID)10000, 0, 0);
 						if (hThread) {
 							CloseHandle(hThread);
 						}
 						return TRUE;
 					}
 					case IDC_BUTTON_SUSPEND: {
-						HANDLE hThread = CreateThread(0, 0, SelfAdd, (LPVOID)10000, 0, 0);
+						HANDLE hThread = CreateThread(0, 0, Test_CrtDeadLock2, (LPVOID)10000, 0, 0);
 						if (hThread) {
 							CloseHandle(hThread);
 						}
