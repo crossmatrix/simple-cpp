@@ -432,6 +432,204 @@ namespace win32Test {
 	void test5(HINSTANCE hInstance) {
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc4);
 	}
+
+	DWORD WINAPI Test_Block(LPVOID param) {
+		int num = (int)param;
+		for (int i = 0; i < num; i++) {
+			if (num % 2 == 0) {
+				qLog("----%d", i);
+			} else {
+				qLog("++++%d", i);
+			}
+			Sleep(1000);
+		}
+		qLog("--finish thread-- %d", param);
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc5(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		//qLog("%x", uMsg);
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BUTTON_START: {
+						HANDLE hThread = CreateThread(0, 0, Test_Block, (LPVOID)5, 0, 0);
+						//TerminateThread(hThread, 0);
+						//CloseHandle(hThread);
+
+						DWORD flag1 = WaitForSingleObject(hThread, 3000);
+						qLog("+++1 %d", flag1);
+						//DWORD flag2 = WaitForSingleObject(hThread, 3000);
+						//qLog("+++2 %d", flag2);
+						//DWORD flag3 = WaitForSingleObject(hThread, 3000);
+						//qLog("+++3 %d", flag3);
+
+						CloseHandle(hThread);
+						return TRUE;
+					}
+					case IDC_BUTTON_SUSPEND: {
+						HANDLE handleArr[2];
+						handleArr[0] = CreateThread(0, 0, Test_Block, (LPVOID)5, 0, 0);
+						handleArr[1] = CreateThread(0, 0, Test_Block, (LPVOID)10, 0, 0);
+						DWORD flag = WaitForMultipleObjects(2, handleArr, TRUE, -1);
+						qLog("all finish %d", flag);
+						for (int i = 0; i < 2; i++) {
+							CloseHandle(handleArr[i]);
+						}
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test6(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc5);
+	}
+
+	DWORD WINAPI Test_Mutext1(LPVOID param) {
+		int idx = 0;
+		while (1) {
+			qLog("1: %d", idx++);
+			Sleep(1000);
+		}
+		return 0;
+	}
+
+	HANDLE hMt;
+	INT_PTR CALLBACK DlgProc6(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		//qLog("%x", uMsg);
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				hMt = CreateMutex(NULL, FALSE, L"mt");
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BUTTON_START: {
+						HANDLE hThread = CreateThread(0, 0, Test_Mutext1, 0, 0, 0);
+						//CloseHandle(hThread);
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test7(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc6);
+	}
+
+	int totalMoney = 100;
+	DWORD WINAPI TestWork(LPVOID param) {
+		int id = (int)param;
+		
+		while (1) {
+			HANDLE lock = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"myLock");
+			if (!lock) {
+				qLog("not find lock");
+				return 0;
+			}
+			WaitForSingleObject(lock, -1);
+			//EnterCriticalSection(&crtSec);
+
+			int leftMoney = totalMoney - (id + 1);
+			if (leftMoney < 10) {
+				qLog("quit %d", id);
+				ReleaseMutex(lock);
+				//LeaveCriticalSection(&crtSec);
+				return 0;
+			}
+			WCHAR cont[0x10] = {};
+			GetDlgItemText(hDlg, IDC_EDIT2 + id, cont, 0x10);
+			int val = _wtoi(cont);
+			val += (id + 1);
+			wsprintf(cont, L"%d", val);
+			SetDlgItemText(hDlg, IDC_EDIT2 + id, cont);
+			wsprintf(cont, L"%d", leftMoney);
+			SetDlgItemText(hDlg, IDC_EDIT1, cont);
+			totalMoney = leftMoney;
+
+			ReleaseMutex(lock);
+			//LeaveCriticalSection(&crtSec);
+			Sleep(400);
+		}
+
+		return 0;
+	}
+
+	DWORD WINAPI DoWork(LPVOID param) {
+		HANDLE handleArr[3];
+		for (int i = 0; i < 3; i++) {
+			handleArr[i] = CreateThread(NULL, 0, TestWork, (LPVOID)i, 0, 0);
+		}
+		//main thread is block! so it must use new thread!!
+		int flag = WaitForMultipleObjects(3, handleArr, TRUE, -1);
+		qLog("all finish %d", flag);
+		for (int i = 0; i < 3; i++) {
+			CloseHandle(handleArr[i]);
+			handleArr[i] = 0;
+		}
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc7(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				DeleteCriticalSection(&crtSec);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				hDlg = hwndDlg;
+				hMt = CreateMutex(NULL, FALSE, L"myLock");
+				InitializeCriticalSection(&crtSec);
+				SetDlgItemText(hwndDlg, IDC_EDIT1, L"100");
+				SetDlgItemText(hwndDlg, IDC_EDIT2, L"0");
+				SetDlgItemText(hwndDlg, IDC_EDIT3, L"0");
+				SetDlgItemText(hwndDlg, IDC_EDIT4, L"0");
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BTN_RUN: {
+						HANDLE hThread = CreateThread(NULL, 0, DoWork, 0, 0, 0);
+						CloseHandle(hThread);
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test8(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgProc7);
+	}
 }
 
 using namespace win32Test;
@@ -440,7 +638,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//test1(hInstance, lpCmdLine);
 	//test2(hInstance);
 	//test3(hInstance);
+	
+	//thread
 	//test4(hInstance);
-	test5(hInstance);
+
+	//critical
+	//test5(hInstance);
+
+	//wait
+	//test6(hInstance);
+
+	//mutex1
+	//test7(hInstance);
+
+	//crt/mutex work
+	test8(hInstance);
+
 	return 0;
 }
