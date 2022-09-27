@@ -702,6 +702,79 @@ namespace win32Test {
 	void test9(HINSTANCE hInstance) {
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgProc8);
 	}
+
+	HANDLE hSmp;
+	DWORD WINAPI SmpTest1(LPVOID param) {
+		WaitForSingleObject(hSmp, -1);
+		for (int i = 0; i < 5; i++) {
+			qLog("t1 %d", i);
+			Sleep(200);
+		}
+		ReleaseSemaphore(hSmp, 1, NULL);
+		return 0;
+	}
+
+	DWORD WINAPI SmpTest2(LPVOID param) {
+		WaitForSingleObject(hSmp, -1);
+		for (int i = 0; i < 5; i++) {
+			qLog("t2 %d", i);
+			Sleep(200);
+		}
+		ReleaseSemaphore(hSmp, 1, NULL);
+		return 0;
+	}
+
+	DWORD WINAPI SmpTest3(LPVOID param) {
+		WaitForSingleObject(hSmp, -1);
+		for (int i = 0; i < 5; i++) {
+			qLog("t3 %d", i);
+			Sleep(200);
+		}
+		ReleaseSemaphore(hSmp, 1, NULL);
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc9(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				CloseHandle(hSmp);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				hSmp = CreateSemaphore(NULL, 0, 3, NULL);
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BTN_RUN: {
+						qLog("start");
+						CreateThread(NULL, 0, SmpTest1, 0, 0, 0);
+						CreateThread(NULL, 0, SmpTest2, 0, 0, 0);
+						CreateThread(NULL, 0, SmpTest3, 0, 0, 0);
+
+						for (int i = 0; i < 5; i++) {
+							qLog("main %d", i);
+							Sleep(200);
+						}
+						ReleaseSemaphore(hSmp, 2, NULL);
+
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test10(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgProc9);
+	}
 }
 
 using namespace win32Test;
@@ -727,7 +800,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//test8(hInstance);
 
 	//event
-	test9(hInstance);
+	//test9(hInstance);
+
+	//semaphore
+	test10(hInstance);
 
 	return 0;
 }
