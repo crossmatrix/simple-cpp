@@ -591,14 +591,15 @@ namespace win32Test {
 			CloseHandle(threadArr[i]);
 			threadArr[i] = 0;
 		}
-		CloseHandle(hMt);
-		DeleteCriticalSection(&crtSec);
+		
 		return 0;
 	}
 
 	INT_PTR CALLBACK DlgProc7(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 		switch (uMsg) {
 			case WM_CLOSE: {
+				CloseHandle(hMt);
+				DeleteCriticalSection(&crtSec);
 				EndDialog(hwndDlg, 0);
 				return TRUE;
 			}
@@ -633,6 +634,74 @@ namespace win32Test {
 	void test8(HINSTANCE hInstance) {
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgProc7);
 	}
+
+	int product = -1;
+	HANDLE hEv1, hEv2;
+
+	DWORD WINAPI Producter(LPVOID param) {
+		for (int i = 0; i < 10; i++) {
+			//EnterCriticalSection(&crtSec);
+			WaitForSingleObject(hEv1, -1);
+			product = 1;
+			qLog("p %d", product);
+			SetEvent(hEv2);
+			//LeaveCriticalSection(&crtSec);
+		}
+		return 0;
+	}
+
+	DWORD WINAPI Consumer(LPVOID param) {
+		for (int i = 0; i < 10; i++) {
+			//EnterCriticalSection(&crtSec);
+			WaitForSingleObject(hEv2, -1);
+			product = 0;
+			qLog("c %d", product);
+			SetEvent(hEv1);
+			//LeaveCriticalSection(&crtSec);
+		}
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc8(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			case WM_CLOSE: {
+				//DeleteCriticalSection(&crtSec);
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				hDlg = hwndDlg;
+				//InitializeCriticalSection(&crtSec);
+				hEv1 = CreateEvent(NULL, FALSE, TRUE, NULL);
+				hEv2 = CreateEvent(NULL, FALSE, FALSE, NULL);
+				SetDlgItemText(hwndDlg, IDC_EDIT1, L"100");
+				SetDlgItemText(hwndDlg, IDC_EDIT2, L"0");
+				SetDlgItemText(hwndDlg, IDC_EDIT3, L"0");
+				SetDlgItemText(hwndDlg, IDC_EDIT4, L"0");
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BTN_RUN: {
+						qLog("start");
+						CreateThread(NULL, 0, Producter, 0, 0, 0);
+						CreateThread(NULL, 0, Consumer, 0, 0, 0);
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test9(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgProc8);
+	}
 }
 
 using namespace win32Test;
@@ -655,7 +724,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//test7(hInstance);
 
 	//crt/mutex work
-	test8(hInstance);
+	//test8(hInstance);
+
+	//event
+	test9(hInstance);
 
 	return 0;
 }
