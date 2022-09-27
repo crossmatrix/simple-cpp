@@ -544,19 +544,21 @@ namespace win32Test {
 		int id = (int)param;
 		
 		while (1) {
-			HANDLE lock = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"myLock");
+			//1.
+			/*HANDLE lock = OpenMutex(MUTEX_ALL_ACCESS, FALSE, L"myLock");
 			if (!lock) {
 				qLog("not find lock");
 				return 0;
 			}
-			WaitForSingleObject(lock, -1);
-			//EnterCriticalSection(&crtSec);
+			WaitForSingleObject(lock, -1);*/
+			//2.
+			EnterCriticalSection(&crtSec);
 
 			int leftMoney = totalMoney - (id + 1);
 			if (leftMoney < 10) {
 				qLog("quit %d", id);
-				ReleaseMutex(lock);
-				//LeaveCriticalSection(&crtSec);
+				//ReleaseMutex(lock);
+				LeaveCriticalSection(&crtSec);
 				return 0;
 			}
 			WCHAR cont[0x10] = {};
@@ -569,26 +571,28 @@ namespace win32Test {
 			SetDlgItemText(hDlg, IDC_EDIT1, cont);
 			totalMoney = leftMoney;
 
-			ReleaseMutex(lock);
-			//LeaveCriticalSection(&crtSec);
-			Sleep(400);
+			//ReleaseMutex(lock);
+			LeaveCriticalSection(&crtSec);
+			Sleep(200);
 		}
 
 		return 0;
 	}
 
 	DWORD WINAPI DoWork(LPVOID param) {
-		HANDLE handleArr[3];
+		HANDLE threadArr[3];
 		for (int i = 0; i < 3; i++) {
-			handleArr[i] = CreateThread(NULL, 0, TestWork, (LPVOID)i, 0, 0);
+			threadArr[i] = CreateThread(NULL, 0, TestWork, (LPVOID)i, 0, 0);
 		}
 		//main thread is block! so it must use new thread!!
-		int flag = WaitForMultipleObjects(3, handleArr, TRUE, -1);
+		int flag = WaitForMultipleObjects(3, threadArr, TRUE, -1);
 		qLog("all finish %d", flag);
 		for (int i = 0; i < 3; i++) {
-			CloseHandle(handleArr[i]);
-			handleArr[i] = 0;
+			CloseHandle(threadArr[i]);
+			threadArr[i] = 0;
 		}
+		CloseHandle(hMt);
+		DeleteCriticalSection(&crtSec);
 		return 0;
 	}
 
@@ -596,7 +600,6 @@ namespace win32Test {
 		switch (uMsg) {
 			case WM_CLOSE: {
 				EndDialog(hwndDlg, 0);
-				DeleteCriticalSection(&crtSec);
 				return TRUE;
 			}
 			case WM_INITDIALOG: {
