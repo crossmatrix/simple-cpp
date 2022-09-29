@@ -772,8 +772,139 @@ namespace win32Test {
 		return FALSE;
 	}
 
+	HANDLE hSmp2;
 	void test10(HINSTANCE hInstance) {
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG1), NULL, (DLGPROC)DlgProc9);
+	}
+
+	DWORD WINAPI Gen(LPVOID param) {
+		while (1) {
+			WaitForSingleObject(hEv1, -1);
+			qLog("gen");
+			bool isFinish = false;
+			for (int i = 0; i < 2; i++) {
+				WCHAR cont[20] = {};
+				GetDlgItemText(hDlg, IDC_EDIT1, cont, 20);
+				WCHAR c[2] = {};
+				c[0] = cont[0];
+				memcpy(cont, cont + 1, sizeof(WCHAR) * 19);
+				SetDlgItemText(hDlg, IDC_EDIT1, cont);
+				SetDlgItemText(hDlg, IDC_EDIT2 + i, c);
+				if (c[0] == L'\0') {
+					isFinish = true;
+				}
+			}
+			Sleep(1000);
+			SetEvent(hEv2);
+			if (isFinish) {
+				break;
+			}
+		}
+		qLog("-----finish");
+		return 0;
+	}
+
+	DWORD WINAPI Use(LPVOID param) {
+		while (1) {
+			WaitForSingleObject(hEv2, -1);
+			qLog("use");
+			ReleaseSemaphore(hSmp, 2, NULL);
+			int times = 0;
+			while (1) {
+				WaitForSingleObject(hSmp2, -1);
+				times++;
+				if (times == 2) {
+					break;
+				}
+			}
+			qLog("use out");
+			SetEvent(hEv1);
+		}
+		return 0;
+	}
+
+	DWORD WINAPI Eat(LPVOID param) {
+		while (1) {
+			WaitForSingleObject(hSmp, -1);
+			EnterCriticalSection(&crtSec);
+			int edID = IDC_EDIT2;
+			WCHAR cont[2] = {};
+			GetDlgItemText(hDlg, IDC_EDIT2, cont, 2);
+			if (cont[0] == L'\0') {
+				edID = IDC_EDIT3;
+			}
+			qLog("eat - %d %d", param, edID);
+			GetDlgItemText(hDlg, edID, cont, 2);
+			SetDlgItemText(hDlg, edID, L"");
+
+			WCHAR self[0x10] = {};
+			UINT num = GetDlgItemText(hDlg, IDC_EDIT4 + (int)param, self, 0x10);
+			//qLog("++ %d", num);
+			self[num] = cont[0];
+			SetDlgItemText(hDlg, IDC_EDIT4 + (int)param, self);
+
+			LeaveCriticalSection(&crtSec);
+			ReleaseSemaphore(hSmp2, 1, NULL);
+		}
+		return 0;
+	}
+
+	DWORD WINAPI MainDeal(LPVOID param) {
+		CreateThread(NULL, 0, Gen, 0, 0, 0);
+		CreateThread(NULL, 0, Use, 0, 0, 0);
+		for (int i = 0; i < 4; i++) {
+			CreateThread(NULL, 0, Eat, (LPVOID)i, 0, 0);
+		}
+		/*HANDLE threadArr[2];
+		threadArr[0] = CreateThread(NULL, 0, Gen, (LPVOID)0, 0, 0);
+		threadArr[1] = CreateThread(NULL, 0, Gen, (LPVOID)1, 0, 0);
+		
+		WaitForMultipleObjects(2, threadArr, TRUE, -1);
+		qLog("food ready ok");
+		ReleaseSemaphore(hSmp, 2, NULL);*/
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc10(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				DeleteCriticalSection(&crtSec);
+				CloseHandle(hSmp);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				WCHAR cont[20] = L"ABCDEFGHIJKLMNO";
+				SetDlgItemText(hwndDlg, IDC_EDIT1, cont);
+				hDlg = hwndDlg;
+				InitializeCriticalSection(&crtSec);
+				hSmp = CreateSemaphore(NULL, 0, 2, NULL);
+				hSmp2 = CreateSemaphore(NULL, 0, 2, NULL);
+				hEv1 = CreateEvent(NULL, false, true, NULL);
+				hEv2 = CreateEvent(NULL, false, false, NULL);
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BTN_START: {
+						//qLog("start");
+						HANDLE hThread = CreateThread(NULL, 0, MainDeal, 0, 0, 0);
+						CloseHandle(hThread);
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	void test11(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG2), NULL, (DLGPROC)DlgProc10);
 	}
 }
 
@@ -803,7 +934,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//test9(hInstance);
 
 	//semaphore
-	test10(hInstance);
+	//test10(hInstance);
+
+	//thread practice
+	test11(hInstance);
 
 	return 0;
 }
