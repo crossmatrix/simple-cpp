@@ -780,8 +780,13 @@ namespace win32Test {
 	DWORD WINAPI Gen(LPVOID param) {
 		while (1) {
 			WaitForSingleObject(hEv1, -1);
+			WCHAR tmp[2] = {};
+			GetDlgItemText(hDlg, IDC_EDIT1, tmp, 2);
+			if (tmp[0] == L'\0') {
+				break;
+			}
+
 			qLog("gen");
-			bool isFinish = false;
 			for (int i = 0; i < 2; i++) {
 				WCHAR cont[20] = {};
 				GetDlgItemText(hDlg, IDC_EDIT1, cont, 20);
@@ -790,15 +795,9 @@ namespace win32Test {
 				memcpy(cont, cont + 1, sizeof(WCHAR) * 19);
 				SetDlgItemText(hDlg, IDC_EDIT1, cont);
 				SetDlgItemText(hDlg, IDC_EDIT2 + i, c);
-				if (c[0] == L'\0') {
-					isFinish = true;
-				}
 			}
 			Sleep(1000);
 			SetEvent(hEv2);
-			if (isFinish) {
-				break;
-			}
 		}
 		qLog("-----finish");
 		return 0;
@@ -850,18 +849,32 @@ namespace win32Test {
 	}
 
 	DWORD WINAPI MainDeal(LPVOID param) {
-		CreateThread(NULL, 0, Gen, 0, 0, 0);
-		CreateThread(NULL, 0, Use, 0, 0, 0);
+		InitializeCriticalSection(&crtSec);
+		hSmp = CreateSemaphore(NULL, 0, 2, NULL);
+		hSmp2 = CreateSemaphore(NULL, 0, 2, NULL);
+		hEv1 = CreateEvent(NULL, false, true, NULL);
+		hEv2 = CreateEvent(NULL, false, false, NULL);
+
+		HANDLE hGen = CreateThread(NULL, 0, Gen, 0, 0, 0);
+		HANDLE hUse = CreateThread(NULL, 0, Use, 0, 0, 0);
+		HANDLE hEat[4];
 		for (int i = 0; i < 4; i++) {
-			CreateThread(NULL, 0, Eat, (LPVOID)i, 0, 0);
+			hEat[i] = CreateThread(NULL, 0, Eat, (LPVOID)i, 0, 0);
 		}
-		/*HANDLE threadArr[2];
-		threadArr[0] = CreateThread(NULL, 0, Gen, (LPVOID)0, 0, 0);
-		threadArr[1] = CreateThread(NULL, 0, Gen, (LPVOID)1, 0, 0);
+		WaitForSingleObject(hGen, -1);
+
+		qLog("clear");
+		CloseHandle(hGen);
+		CloseHandle(hUse);
+		for (int i = 0; i < 4; i++) {
+			CloseHandle(hEat[i]);
+		}
+		DeleteCriticalSection(&crtSec);
+		CloseHandle(hSmp);
+		CloseHandle(hSmp2);
+		CloseHandle(hEv1);
+		CloseHandle(hEv2);
 		
-		WaitForMultipleObjects(2, threadArr, TRUE, -1);
-		qLog("food ready ok");
-		ReleaseSemaphore(hSmp, 2, NULL);*/
 		return 0;
 	}
 
@@ -869,19 +882,12 @@ namespace win32Test {
 		switch (uMsg) {
 			case WM_CLOSE: {
 				EndDialog(hwndDlg, 0);
-				DeleteCriticalSection(&crtSec);
-				CloseHandle(hSmp);
 				return TRUE;
 			}
 			case WM_INITDIALOG: {
 				WCHAR cont[20] = L"ABCDEFGHIJKLMNO";
 				SetDlgItemText(hwndDlg, IDC_EDIT1, cont);
 				hDlg = hwndDlg;
-				InitializeCriticalSection(&crtSec);
-				hSmp = CreateSemaphore(NULL, 0, 2, NULL);
-				hSmp2 = CreateSemaphore(NULL, 0, 2, NULL);
-				hEv1 = CreateEvent(NULL, false, true, NULL);
-				hEv2 = CreateEvent(NULL, false, false, NULL);
 				return TRUE;
 			}
 			case WM_COMMAND: {
