@@ -225,26 +225,26 @@ namespace peTest {
 		free(fileBuffer);
 	}
 
-#pragma comment(lib, "myDll.lib")
-	extern "C" __declspec(dllimport) int add(int, int);
-	extern "C" __declspec(dllimport) int sub(int, int);
-	void test8() {
-		int v1 = add(30, 10);
-		int v2 = sub(30, 10);
-		print("%d %d", v1, v2);
-		print("%p %p", add, sub);
-
-		HMODULE mod = LoadLibrary("myDll.dll");
-		if (mod) {
-			FARPROC fp1 = GetProcAddress(mod, "add");
-			FARPROC fp2 = GetProcAddress(mod, "sub");
-			print("%p %p", fp1, fp2);
-
-			int(*func1)(int, int) = (int(*) (int, int))fp1;
-			int(*func2)(int, int) = (int(*) (int, int))fp2;
-			print("%d %d", func1(30, 10), func2(30, 10));
-		}
-	}
+//#pragma comment(lib, "myDll.lib")
+//	extern "C" __declspec(dllimport) int add(int, int);
+//	extern "C" __declspec(dllimport) int sub(int, int);
+//	void test8() {
+//		int v1 = add(30, 10);
+//		int v2 = sub(30, 10);
+//		print("%d %d", v1, v2);
+//		print("%p %p", add, sub);
+//
+//		HMODULE mod = LoadLibrary("myDll.dll");
+//		if (mod) {
+//			FARPROC fp1 = GetProcAddress(mod, "add");
+//			FARPROC fp2 = GetProcAddress(mod, "sub");
+//			print("%p %p", fp1, fp2);
+//
+//			int(*func1)(int, int) = (int(*) (int, int))fp1;
+//			int(*func2)(int, int) = (int(*) (int, int))fp2;
+//			print("%d %d", func1(30, 10), func2(30, 10));
+//		}
+//	}
 
 	void test9() {
 		char* path = res("myDll2.dll");

@@ -912,6 +912,75 @@ namespace win32Test {
 	void test11(HINSTANCE hInstance) {
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG2), NULL, (DLGPROC)DlgProc10);
 	}
+
+	DWORD WINAPI WaitProc(LPVOID param) {
+		qLog("p1-t2 enter");
+		HANDLE hEv = (HANDLE)param;
+		WaitForSingleObject(hEv, -1);
+		qLog("p1-t2 leave");
+		return 0;
+	}
+
+	INT_PTR CALLBACK DlgProc11(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+		switch (uMsg) {
+			case WM_CLOSE: {
+				EndDialog(hwndDlg, 0);
+				return TRUE;
+			}
+			case WM_INITDIALOG: {
+				return TRUE;
+			}
+			case WM_COMMAND: {
+				switch (wParam) {
+					case IDC_BUTTON_START: {
+						SECURITY_ATTRIBUTES sa;
+						sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+						sa.lpSecurityDescriptor = NULL;
+						sa.bInheritHandle = TRUE;
+						HANDLE hEv = CreateEvent(&sa, FALSE, FALSE, NULL);
+						CreateThread(0, 0, WaitProc, (PVOID)hEv, 0, 0);
+
+						PROCESS_INFORMATION pi;
+						STARTUPINFO si = {};
+						si.cb = sizeof(STARTUPINFO);
+						WCHAR cmd[100] = {};
+						wsprintf(cmd, L"E:/code/cpp/test1/Debug/test1.exe %d", hEv);
+						BOOL rs = CreateProcess(NULL, cmd, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+						qLog("create process finish: %d", rs);
+
+						return TRUE;
+					}
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return FALSE;
+	}
+
+	//other process main function
+	//int main(int argc, char* argv[]) {
+	//	print("%s %s", argv[0], argv[1]);
+	//	char* s1 = argv[1];
+	//	if (s1) {
+	//		HANDLE hEv = (HANDLE)atoi(s1);
+	//		print("%d", hEv);
+
+	//		for (int i = 0; i < 3; i++) {
+	//			print("wait %d...", 3 - i);
+	//			Sleep(1000);
+	//		}
+	//		SetEvent(hEv);
+	//	}
+	//	getchar();
+	//}
+
+	void test12(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc11);
+	}
 }
 
 using namespace win32Test;
@@ -943,7 +1012,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//test10(hInstance);
 
 	//thread practice
-	test11(hInstance);
+	//test11(hInstance);
+
+	//process(inherit handle-table)
+	test12(hInstance);
 
 	return 0;
 }

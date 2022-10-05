@@ -14,7 +14,7 @@
 #include "peTool.h"
 
 void __cdecl DbgLogA(const char* format, ...);
-void __cdecl DbgLogW(const WCHAR * format, ...);
+void __cdecl DbgLogW(const WCHAR* format, ...);
 
 #ifdef _DEBUG
 #ifdef UNICODE
