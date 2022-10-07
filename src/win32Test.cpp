@@ -944,9 +944,43 @@ namespace win32Test {
 						STARTUPINFO si = {};
 						si.cb = sizeof(STARTUPINFO);
 						WCHAR cmd[100] = {};
-						wsprintf(cmd, L"E:/code/cpp/test1/Debug/test1.exe %d", hEv);
+						wsprintf(cmd, L"D:/Code/vsDir/test1/Debug/test1.exe %d", hEv);
 						BOOL rs = CreateProcess(NULL, cmd, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
 						qLog("create process finish: %d", rs);
+
+						return TRUE;
+					}
+					case IDC_BUTTON_SUSPEND: {
+						PROCESS_INFORMATION pi1;
+						STARTUPINFO si = {};
+						si.cb = sizeof(STARTUPINFO);
+						WCHAR cmd[MAX_PATH] = {};
+						wsprintf(cmd, L"C:/Users/Administrator/AppData/Local/Google/Chrome/Application/chrome.exe");
+						SECURITY_ATTRIBUTES tAttr;
+						tAttr.nLength = sizeof(PSECURITY_ATTRIBUTES);
+						tAttr.lpSecurityDescriptor = NULL;
+						tAttr.bInheritHandle = TRUE;
+						SECURITY_ATTRIBUTES pAttr;
+						pAttr.nLength = sizeof(PSECURITY_ATTRIBUTES);
+						pAttr.lpSecurityDescriptor = NULL;
+						pAttr.bInheritHandle = TRUE;
+						//CreateProcess(NULL, cmd, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi1);
+						CreateProcess(NULL, cmd, &pAttr, &tAttr, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi1);
+
+						PROCESS_INFORMATION pi2;
+						ZeroMemory(cmd, MAX_PATH * sizeof(WCHAR));
+						wsprintf(cmd, L"D:/Code/vsDir/test1/Debug/test1.exe %d %d", pi1.hProcess, pi1.hThread);
+						//CreateProcess(NULL, cmd, NULL, NULL, TRUE, CREATE_NEW_CONSOLE, NULL, L"D:/Code/vsDir/test1/Debug", &si, &pi2);
+						
+						CreateProcess(NULL, cmd, NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, L"D:/Code/vsDir/test1/Debug", &si, &pi2);
+						CONTEXT ctx;
+						ctx.ContextFlags = CONTEXT_ALL;
+						GetThreadContext(pi2.hThread, &ctx);
+						DWORD oep = ctx.Eax;
+						DWORD imgBasePos = ctx.Ebx + 8;
+						DWORD imgBase;
+						ReadProcessMemory(pi2.hProcess, (void*)imgBasePos, &imgBase, 4, NULL);
+						ResumeThread(pi2.hThread);
 
 						return TRUE;
 					}
@@ -961,8 +995,7 @@ namespace win32Test {
 		return FALSE;
 	}
 
-	//other process main function
-	//int main(int argc, char* argv[]) {
+	//void testProcess1(int argc, char* argv[]) {
 	//	print("%s %s", argv[0], argv[1]);
 	//	char* s1 = argv[1];
 	//	if (s1) {
@@ -981,6 +1014,31 @@ namespace win32Test {
 	void test12(HINSTANCE hInstance) {
 		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc11);
 	}
+
+	/*void testProcess2(int argc, char* argv[]) {
+		char* s1 = argv[1];
+		char* s2 = argv[2];
+		if (s1 && s2) {
+			HANDLE hP = (HANDLE)atoi(s1);
+			HANDLE hT = (HANDLE)atoi(s2);
+			print("processHandhle: %d, threadHandle: %d", hP, hT);
+			char dirBuf[MAX_PATH];
+			GetCurrentDirectory(MAX_PATH, dirBuf);
+			print("dir: %s", dirBuf);
+
+			Sleep(5000);
+			printf("suspend\n");
+			SuspendThread(hT);
+
+			Sleep(5000);
+			printf("resume\n");
+			ResumeThread(hT);
+
+			Sleep(5000);
+			printf("quit chrome\n");
+			TerminateProcess(hP, 0);
+		}
+	}*/
 }
 
 using namespace win32Test;
