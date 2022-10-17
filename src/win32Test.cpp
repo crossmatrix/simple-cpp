@@ -976,7 +976,9 @@ namespace win32Test {
 						CONTEXT ctx;
 						ctx.ContextFlags = CONTEXT_ALL;
 						GetThreadContext(pi2.hThread, &ctx);
+						//get oep
 						DWORD oep = ctx.Eax;
+						//get imageBase
 						DWORD imgBasePos = ctx.Ebx + 8;
 						DWORD imgBase;
 						ReadProcessMemory(pi2.hProcess, (void*)imgBasePos, &imgBase, 4, NULL);
@@ -1011,10 +1013,6 @@ namespace win32Test {
 	//	getchar();
 	//}
 
-	void test12(HINSTANCE hInstance) {
-		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc11);
-	}
-
 	/*void testProcess2(int argc, char* argv[]) {
 		char* s1 = argv[1];
 		char* s2 = argv[2];
@@ -1039,6 +1037,10 @@ namespace win32Test {
 			TerminateProcess(hP, 0);
 		}
 	}*/
+
+	void test12(HINSTANCE hInstance) {
+		DialogBox(hInstance, MAKEINTRESOURCE(IDD_DIALOG), NULL, (DLGPROC)DlgProc11);
+	}
 }
 
 using namespace win32Test;
