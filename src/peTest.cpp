@@ -349,7 +349,7 @@ namespace peTest {
 		//showPE(path);
 
 		PVOID newBuffer = 0;
-		int secIdx = 0; //012,tail
+		int secIdx = 0; //0 1, 2 tail
 		DWORD newFileSize = addSection(fileBuffer, secIdx, ".test", 800, &newBuffer);
 		//savePE(fileBuffer, oldFileSize, res("notepad_test.exe"));
 
@@ -408,11 +408,28 @@ namespace peTest {
 		free(path);
 		free(fileBuffer);
 	}
+
+	void test17() {
+		makeShell();
+	}
+
+	void test18() {
+		char* path_src = res("notepad.exe");
+		char* path_shell = res("shell.exe");
+		char* path_save = res("shell_notepad.exe");
+		const char* secName = ".new";
+
+		addShell(path_src, path_shell, path_save, secName);
+
+		free(path_src);
+		free(path_shell);
+		free(path_save);
+	}
 }
 
 using namespace peTest;
 
-int main_review() {
-	test16();
+int main() {
+	test18();
 	return 0;
 }

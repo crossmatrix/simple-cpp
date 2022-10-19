@@ -732,7 +732,7 @@ DWORD addSection(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, OUT
 	}
 	secSize = align(secSize, hNt->OptionalHeader.FileAlignment);
 	DWORD newFileSize = oldFileSize + secSize;
-	print("%d/%d 0x%p [0x%p] 0x%p", secIdx, hNt->FileHeader.NumberOfSections, oldFileSize, newFileSize, secSize);
+	print("%d-%d [0x%p] -> [0x%p] 0x%p", secIdx, hNt->FileHeader.NumberOfSections, oldFileSize, newFileSize, secSize);
 
 	DWORD beginFoa = (DWORD)lstSec + sizeof(IMAGE_SECTION_HEADER) - (DWORD)fileBuffer;
 	DWORD endFoa = hNt->OptionalHeader.SizeOfHeaders;
@@ -830,4 +830,62 @@ void showData_2_Resource(PVOID fileBuffer) {
 
 	print("----------resource table----------");
 	resourceInfo(fileBuffer, dataRva, checkRes_Name, checkRes_Data);
+}
+
+void addShell(PCHAR path_src, PCHAR path_shell, PCHAR path_save, PCCH secName) {
+	PVOID fileBuffer_src = 0;
+	DWORD len_src = openPE(path_src, &fileBuffer_src);
+	PVOID fileBuffer_shell = 0;
+	DWORD len_shell = openPE(path_shell, &fileBuffer_shell);
+
+	PVOID rsBuffer = 0;
+	DWORD rsLen = addSection(fileBuffer_shell, -1, secName, len_src, &rsBuffer);
+	if (rsBuffer) {
+		PIMAGE_NT_HEADERS hNt = NT_HEADER(rsBuffer);
+		PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+		PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
+		PVOID dstAddr = (PVOID)(lstSec->PointerToRawData + (DWORD)rsBuffer);
+		//todo: encode fileBuffer_src, len_src
+		memcpy(dstAddr, fileBuffer_src, len_src);
+
+		savePE(rsBuffer, rsLen, path_save);
+		print("save finish: %s", path_save);
+		free(rsBuffer);
+	}
+
+	free(fileBuffer_src);
+	free(fileBuffer_shell);
+}
+
+void makeShell() {
+	char selfPath[MAX_PATH];
+	GetModuleFileName(NULL, selfPath, 0x100);
+	
+	//1.get last section(src file)
+	PVOID fileBuffer = 0;
+	openPE(selfPath, &fileBuffer);
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
+	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
+	PVOID srcFileBuffer = (PVOID)((DWORD)fileBuffer + lstSec->PointerToRawData);
+
+	hNt = NT_HEADER(srcFileBuffer);
+	print("src ImageBase=0x%p", hNt->OptionalHeader.ImageBase);
+
+	//2.stretch to image
+	PVOID imgBuffer = 0;
+	peFile2Img(srcFileBuffer, &imgBuffer);
+
+	//3.create process in suspend
+	STARTUPINFO startupInfo = {};
+	startupInfo.cb = sizeof(STARTUPINFO);
+	PROCESS_INFORMATION processInfo = {};
+	BOOL sucProc = CreateProcess(selfPath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo, &processInfo);
+	print("CreateProcess result: %d %d", sucProc, GetLastError());
+
+	//
+	//ZWUnmap
+
+	free(imgBuffer);
+	free(fileBuffer);
 }
