@@ -1,4 +1,5 @@
 #include "peTool.h"
+#include <ntstatus.h>
 
 void* malloc_s(int size) {
 	void* mem = malloc(size);
@@ -860,32 +861,95 @@ void addShell(PCHAR path_src, PCHAR path_shell, PCHAR path_save, PCCH secName) {
 void makeShell() {
 	char selfPath[MAX_PATH];
 	GetModuleFileName(NULL, selfPath, 0x100);
-	
-	//1.get last section(src file)
+
+	//1.create process in suspend
+	STARTUPINFO startupInfo = {};
+	startupInfo.cb = sizeof(STARTUPINFO);
+	PROCESS_INFORMATION processInfo = {};
+	BOOL sucProc = CreateProcess(selfPath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo, &processInfo);
+	print("1.create process result: %d %d", sucProc, GetLastError());
+
+	//2.get runtime ImageBase
+	CONTEXT ctx;
+	ctx.ContextFlags = CONTEXT_ALL;
+	GetThreadContext(processInfo.hThread, &ctx);
+	//get oep
+	DWORD oep = ctx.Eax;
+	//get imageBase
+	DWORD imgBasePos = ctx.Ebx + 8;
+	DWORD imgBase;
+	ReadProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, &imgBase, 4, NULL);
+	print("2.new process ImageBase: %p, OEP: %p", imgBase, oep);
+
+	//3.clear new process image space
+	typedef NTSTATUS(__stdcall* pfZwUnmapViewOfSection)(HANDLE ProcessHandle, PVOID BaseAddress);
+	pfZwUnmapViewOfSection ZwUnmapViewOfSection = 0;
+	HMODULE hMod = LoadLibrary("ntdll.dll");
+	if (hMod) {
+		ZwUnmapViewOfSection = (pfZwUnmapViewOfSection)GetProcAddress(hMod, "ZwUnmapViewOfSection");
+		if (ZwUnmapViewOfSection) {
+			NTSTATUS unmapFlag = ZwUnmapViewOfSection(processInfo.hProcess, (PVOID)imgBase);
+			if (unmapFlag == STATUS_SUCCESS) {
+				print("3.unmap new process image suc");
+			}
+		}
+		FreeLibrary(hMod);
+	}
+
+	//4.get last section(src file info)
 	PVOID fileBuffer = 0;
 	openPE(selfPath, &fileBuffer);
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	PIMAGE_SECTION_HEADER fstSec = IMAGE_FIRST_SECTION(hNt);
 	PIMAGE_SECTION_HEADER lstSec = fstSec + (hNt->FileHeader.NumberOfSections - 1);
 	PVOID srcFileBuffer = (PVOID)((DWORD)fileBuffer + lstSec->PointerToRawData);
+	PIMAGE_NT_HEADERS hSrcNt = NT_HEADER(srcFileBuffer);
+	print("4.src file ImageBase: %p, ImageSize: %p", hSrcNt->OptionalHeader.ImageBase, hSrcNt->OptionalHeader.SizeOfImage);
 
-	hNt = NT_HEADER(srcFileBuffer);
-	print("src ImageBase=0x%p", hNt->OptionalHeader.ImageBase);
+	//5.alloc space
+	LPVOID baseAddr = VirtualAllocEx(processInfo.hProcess,
+		(LPVOID)hSrcNt->OptionalHeader.ImageBase, hSrcNt->OptionalHeader.SizeOfImage,
+		MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
+	);
+	if (baseAddr) {
+		print("5.alloc suc: %p", baseAddr);
+		
+		//6.stretch to image and copy to new process
+		PVOID imgBuffer = 0;
+		peFile2Img(srcFileBuffer, &imgBuffer);
+		if (imgBuffer) {
+			DWORD writeLen = 0;
+			if (WriteProcessMemory(processInfo.hProcess, (LPVOID)hSrcNt->OptionalHeader.ImageBase, imgBuffer, hSrcNt->OptionalHeader.SizeOfImage, &writeLen)) {
+				print("6.write src image buffer suc: %p", writeLen);
 
-	//2.stretch to image
-	PVOID imgBuffer = 0;
-	peFile2Img(srcFileBuffer, &imgBuffer);
+				writeLen = 0;
+				ctx.Eax = hSrcNt->OptionalHeader.ImageBase + hSrcNt->OptionalHeader.AddressOfEntryPoint;
+				if (WriteProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, (LPVOID) & (hSrcNt->OptionalHeader.ImageBase), 4, &writeLen)) {
+					SetThreadContext(processInfo.hThread, &ctx);
+					////test
+					//CONTEXT ctx1;
+					//ctx1.ContextFlags = CONTEXT_ALL;
+					//GetThreadContext(processInfo.hThread, &ctx1);
+					////get oep
+					//DWORD oep1 = ctx1.Eax;
+					////get imageBase
+					//DWORD imgBasePos1 = ctx1.Ebx + 8;
+					//DWORD imgBase1;
+					//ReadProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos1, &imgBase1, 4, NULL);
+					//print("test, ImageBase: %p, OEP: %p", imgBase1, oep1);
+					print("7.recover context suc: %d, all finish!", writeLen);
+					ResumeThread(processInfo.hThread);
+				} else {
+					print("7.recover context error: %p", GetLastError());
+				}
+			} else {
+				print("6.write image buffer error: %d", GetLastError());
+			}
+			free(imgBuffer);
+		}
+	} else {
+		print("5.VirtualAllocEx error: %d", GetLastError());
+	}
 
-	//3.create process in suspend
-	STARTUPINFO startupInfo = {};
-	startupInfo.cb = sizeof(STARTUPINFO);
-	PROCESS_INFORMATION processInfo = {};
-	BOOL sucProc = CreateProcess(selfPath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo, &processInfo);
-	print("CreateProcess result: %d %d", sucProc, GetLastError());
-
-	//
-	//ZWUnmap
-
-	free(imgBuffer);
 	free(fileBuffer);
 }
