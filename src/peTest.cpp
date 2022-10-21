@@ -414,9 +414,9 @@ namespace peTest {
 	}
 
 	void test18() {
-		char* path_src = res("notepad.exe");
+		char* path_src = res("hello.exe");
 		char* path_shell = res("shell.exe");
-		char* path_save = res("shell_notepad.exe");
+		char* path_save = res("shell_hello.exe");
 		const char* secName = ".new";
 
 		addShell(path_src, path_shell, path_save, secName);

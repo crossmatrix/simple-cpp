@@ -1,5 +1,4 @@
 #include "peTool.h"
-#include <ntstatus.h>
 
 void* malloc_s(int size) {
 	void* mem = malloc(size);
@@ -56,6 +55,7 @@ long openPE(IN PCTCH path, OUT PVOID* file) {
 		if (!size) {
 			free(buf);
 			len = size;
+			print("openPE fail");
 		} else {
 			*file = buf;
 		}
@@ -616,7 +616,7 @@ void resourceInfo(PVOID fileBuffer, DWORD dataRva,
 	}
 }
 
-void restoreDir(PVOID fileBuffer, PVOID oldBuffer, int secIdx, DWORD secSize, DWORD secFoa) {
+void restoreDir(PVOID fileBuffer, PVOID oldBuffer, DWORD secSize, DWORD secFoa) {
 	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
 	//Import
 	PIMAGE_DATA_DIRECTORY pDir = &hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
@@ -714,11 +714,11 @@ void restoreData(PVOID fileBuffer, int secIdx, PCSTR secName, DWORD secSize, DWO
 
 	//OptionalHeader
 	hNt->OptionalHeader.SizeOfImage = sizeOfImg;
-	correctRva(hNt->OptionalHeader.BaseOfCode, fileBuffer, oldBuffer, secFoa, secSize);
-	correctRva(hNt->OptionalHeader.BaseOfData, fileBuffer, oldBuffer, secFoa, secSize);
+	//correctRva(hNt->OptionalHeader.BaseOfCode, fileBuffer, oldBuffer, secFoa, secSize);
+	//correctRva(hNt->OptionalHeader.BaseOfData, fileBuffer, oldBuffer, secFoa, secSize);
 	correctRva(hNt->OptionalHeader.AddressOfEntryPoint, fileBuffer, oldBuffer, secFoa, secSize);
 	//Dir
-	restoreDir(fileBuffer, oldBuffer, secIdx, secSize, secFoa);
+	restoreDir(fileBuffer, oldBuffer, secSize, secFoa);
 }
 
 //secIdx: [0, maxSecNum - 1], otherwise tail
@@ -858,30 +858,72 @@ void addShell(PCHAR path_src, PCHAR path_shell, PCHAR path_save, PCCH secName) {
 	free(fileBuffer_shell);
 }
 
+void makeShellRecord(PCSTR info) {
+	print("err: %s(%d)", info, GetLastError());
+}
+
+void restoreReloc(PVOID fileBuffer, DWORD newImgBase) {
+	PIMAGE_NT_HEADERS hNt = NT_HEADER(fileBuffer);
+	PIMAGE_DATA_DIRECTORY pDir = &(hNt->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC]);
+	DWORD dataRva = pDir->VirtualAddress;
+	if (!dataRva) {
+		print("no reloc info");
+		return;
+	}
+	DWORD oldBase = hNt->OptionalHeader.ImageBase;
+
+	PIMAGE_BASE_RELOCATION pData = (PIMAGE_BASE_RELOCATION)rva2fa(fileBuffer, dataRva);
+	DWORD typeSize = sizeof(IMAGE_BASE_RELOCATION);
+	while (!isZeroBlock((PVOID)pData, typeSize)) {
+		DWORD itemNum = (pData->SizeOfBlock - typeSize) / 2;
+		PWORD pItem = PWORD((DWORD)pData + typeSize);
+		for (int i = 0; i < itemNum; i++) {
+			if (pItem[i]) {
+				DWORD data = pItem[i] & 0xFFF;
+				DWORD dataRva = data + pData->VirtualAddress;
+				PDWORD dataFa = (PDWORD)rva2fa(fileBuffer, dataRva);
+				*dataFa = *dataFa - oldBase + newImgBase;
+			}
+		}
+		pData = (PIMAGE_BASE_RELOCATION)((DWORD)pData + pData->SizeOfBlock);
+	}
+}
+
 void makeShell() {
 	char selfPath[MAX_PATH];
-	GetModuleFileName(NULL, selfPath, 0x100);
+	GetModuleFileName(NULL, selfPath, MAX_PATH);
+	DWORD flag = 0;
 
 	//1.create process in suspend
 	STARTUPINFO startupInfo = {};
 	startupInfo.cb = sizeof(STARTUPINFO);
-	PROCESS_INFORMATION processInfo = {};
-	BOOL sucProc = CreateProcess(selfPath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo, &processInfo);
-	print("1.create process result: %d %d", sucProc, GetLastError());
+	PROCESS_INFORMATION processInfo;
+	flag = CreateProcess(selfPath, NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &startupInfo, &processInfo);
+	if (!flag) {
+		makeShellRecord("1.create process");
+		return;
+	}
+	print("1.create process suc");
 
-	//2.get runtime ImageBase
+	//2.get runtime Info
 	CONTEXT ctx;
 	ctx.ContextFlags = CONTEXT_ALL;
-	GetThreadContext(processInfo.hThread, &ctx);
-	//get oep
+	flag = GetThreadContext(processInfo.hThread, &ctx);
+	if (!flag) {
+		makeShellRecord("2.get context");
+		return;
+	}
 	DWORD oep = ctx.Eax;
-	//get imageBase
 	DWORD imgBasePos = ctx.Ebx + 8;
 	DWORD imgBase;
-	ReadProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, &imgBase, 4, NULL);
-	print("2.new process ImageBase: %p, OEP: %p", imgBase, oep);
+	flag = ReadProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, &imgBase, 4, NULL);
+	if (!flag) {
+		makeShellRecord("2.read imageBase");
+		return;
+	}
+	print("2.new process runtime ImageBase: %p, OEP: %p", imgBase, oep);
 
-	//3.clear new process image space
+	//3.unmap new process image space
 	typedef NTSTATUS(__stdcall* pfZwUnmapViewOfSection)(HANDLE ProcessHandle, PVOID BaseAddress);
 	pfZwUnmapViewOfSection ZwUnmapViewOfSection = 0;
 	HMODULE hMod = LoadLibrary("ntdll.dll");
@@ -908,48 +950,50 @@ void makeShell() {
 
 	//5.alloc space
 	LPVOID baseAddr = VirtualAllocEx(processInfo.hProcess,
-		(LPVOID)hSrcNt->OptionalHeader.ImageBase, hSrcNt->OptionalHeader.SizeOfImage,
+		(LPVOID)imgBase, hSrcNt->OptionalHeader.SizeOfImage,
 		MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE
 	);
-	if (baseAddr) {
-		print("5.alloc suc: %p", baseAddr);
-		
-		//6.stretch to image and copy to new process
-		PVOID imgBuffer = 0;
-		peFile2Img(srcFileBuffer, &imgBuffer);
-		if (imgBuffer) {
-			DWORD writeLen = 0;
-			if (WriteProcessMemory(processInfo.hProcess, (LPVOID)hSrcNt->OptionalHeader.ImageBase, imgBuffer, hSrcNt->OptionalHeader.SizeOfImage, &writeLen)) {
-				print("6.write src image buffer suc: %p", writeLen);
+	if (!baseAddr) {
+		makeShellRecord("5.alloc space");
+		return;
+	}
+	print("5.alloc suc: %p %p", baseAddr, imgBase);
 
-				writeLen = 0;
-				ctx.Eax = hSrcNt->OptionalHeader.ImageBase + hSrcNt->OptionalHeader.AddressOfEntryPoint;
-				if (WriteProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, (LPVOID) & (hSrcNt->OptionalHeader.ImageBase), 4, &writeLen)) {
-					SetThreadContext(processInfo.hThread, &ctx);
-					////test
-					//CONTEXT ctx1;
-					//ctx1.ContextFlags = CONTEXT_ALL;
-					//GetThreadContext(processInfo.hThread, &ctx1);
-					////get oep
-					//DWORD oep1 = ctx1.Eax;
-					////get imageBase
-					//DWORD imgBasePos1 = ctx1.Ebx + 8;
-					//DWORD imgBase1;
-					//ReadProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos1, &imgBase1, 4, NULL);
-					//print("test, ImageBase: %p, OEP: %p", imgBase1, oep1);
-					print("7.recover context suc: %d, all finish!", writeLen);
-					ResumeThread(processInfo.hThread);
-				} else {
-					print("7.recover context error: %p", GetLastError());
-				}
-			} else {
-				print("6.write image buffer error: %d", GetLastError());
-			}
-			free(imgBuffer);
-		}
+	//6.fix reloc
+	if (imgBase != hSrcNt->OptionalHeader.ImageBase) {
+		restoreReloc(srcFileBuffer, imgBase);
+		hSrcNt->OptionalHeader.ImageBase = imgBase;
+		print("6.fix reloc suc");
 	} else {
-		print("5.VirtualAllocEx error: %d", GetLastError());
+		print("6.dont need fix reloc");
 	}
 
-	free(fileBuffer);
+	//7.stretch to image and copy to new process
+	PVOID imgBuffer = 0;
+	peFile2Img(srcFileBuffer, &imgBuffer);
+	if (imgBuffer) {
+		DWORD writeLen = 0;
+		if (!WriteProcessMemory(processInfo.hProcess, (LPVOID)imgBase, imgBuffer, hSrcNt->OptionalHeader.SizeOfImage, &writeLen)) {
+			makeShellRecord("7.write imgBuffer");
+			return;
+		}
+		print("7.write src image buffer suc: %p", writeLen);
+
+		writeLen = 0;
+		ctx.Eax = imgBase + hSrcNt->OptionalHeader.AddressOfEntryPoint;
+		if (!WriteProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, &imgBase, 4, &writeLen)) {
+			makeShellRecord("7.write imgBase");
+			return;
+		}
+		SetThreadContext(processInfo.hThread, &ctx);
+
+		print("8.recover context suc: %d, all finish!", writeLen);
+		ResumeThread(processInfo.hThread);
+		
+		free(imgBuffer);
+	}
+
+	if (fileBuffer) {
+		free(fileBuffer);
+	}
 }

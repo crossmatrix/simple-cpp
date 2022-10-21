@@ -7,6 +7,7 @@
 #include <winnt.h>
 #include <tchar.h>
 #include <functional>
+#include <ntstatus.h>
 
 #define print(str,...) printf(str##"\n",__VA_ARGS__)
 #define NT_HEADER(buffer) ((PIMAGE_NT_HEADERS)((DWORD)buffer + ((PIMAGE_DOS_HEADER)buffer)->e_lfanew))
