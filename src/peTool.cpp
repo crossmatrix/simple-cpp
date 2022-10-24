@@ -981,10 +981,11 @@ void makeShell() {
 
 		writeLen = 0;
 		ctx.Eax = imgBase + hSrcNt->OptionalHeader.AddressOfEntryPoint;
-		if (!WriteProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, &imgBase, 4, &writeLen)) {
+		//原理是把imgBuffer移动到原运行时ImageBase，所以这里改不改ebx+8都一样，imgBase的值不变
+		/*if (!WriteProcessMemory(processInfo.hProcess, (LPVOID)imgBasePos, &imgBase, 4, &writeLen)) {
 			makeShellRecord("7.write imgBase");
 			return;
-		}
+		}*/
 		SetThreadContext(processInfo.hThread, &ctx);
 
 		print("8.recover context suc: %d, all finish!", writeLen);
