@@ -425,11 +425,26 @@ namespace peTest {
 		free(path_shell);
 		free(path_save);
 	}
+
+	void test19() {
+		HWND hwnd = FindWindow(_T("StandardFrame_DingTalk"), NULL);
+		if (hwnd) {
+			print("find switch");
+			SwitchToThisWindow(hwnd, true);
+			Sleep(2000);
+
+			HWND hEdt = FindWindowEx(hwnd, NULL, _T("Edit"), _T(""));
+			print("%p", hEdt);
+
+			//SendMessage(hwnd, WM_CLOSE, NULL, NULL);
+			//print("close");
+		}
+	}
 }
 
 using namespace peTest;
 
 int main() {
-	test18();
+	test19();
 	return 0;
 }

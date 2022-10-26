@@ -39,7 +39,7 @@ void resourceInfo(PVOID fileBuffer, DWORD dataRva,
 	std::function<void(PIMAGE_RESOURCE_DATA_ENTRY, int, PVOID)> dataFunc
 );
 void showData_2_Resource(PVOID fileBuffer);
-void addShell(PCHAR path_src, PCHAR path_shell, PCHAR path_save, PCCH secName);
+void addShell(PCTCH path_src, PCTCH path_shell, PCTCH path_save, PCCH secName);
 void makeShell();
 
 #endif

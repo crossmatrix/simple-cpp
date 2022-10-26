@@ -833,7 +833,7 @@ void showData_2_Resource(PVOID fileBuffer) {
 	resourceInfo(fileBuffer, dataRva, checkRes_Name, checkRes_Data);
 }
 
-void addShell(PCHAR path_src, PCHAR path_shell, PCHAR path_save, PCCH secName) {
+void addShell(PCTCH path_src, PCTCH path_shell, PCTCH path_save, PCCH secName) {
 	PVOID fileBuffer_src = 0;
 	DWORD len_src = openPE(path_src, &fileBuffer_src);
 	PVOID fileBuffer_shell = 0;
@@ -890,7 +890,7 @@ void restoreReloc(PVOID fileBuffer, DWORD newImgBase) {
 }
 
 void makeShell() {
-	char selfPath[MAX_PATH];
+	TCHAR selfPath[MAX_PATH];
 	GetModuleFileName(NULL, selfPath, MAX_PATH);
 	DWORD flag = 0;
 
@@ -926,7 +926,7 @@ void makeShell() {
 	//3.unmap new process image space
 	typedef NTSTATUS(__stdcall* pfZwUnmapViewOfSection)(HANDLE ProcessHandle, PVOID BaseAddress);
 	pfZwUnmapViewOfSection ZwUnmapViewOfSection = 0;
-	HMODULE hMod = LoadLibrary("ntdll.dll");
+	HMODULE hMod = LoadLibrary(_T("ntdll.dll"));
 	if (hMod) {
 		ZwUnmapViewOfSection = (pfZwUnmapViewOfSection)GetProcAddress(hMod, "ZwUnmapViewOfSection");
 		if (ZwUnmapViewOfSection) {
